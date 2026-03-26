@@ -8,7 +8,7 @@ A Chrome/Edge DevTools extension that intercepts all WebSocket connections on a 
 - **Connection sidebar** — Lists every WebSocket connection with its status (connecting / open / closed / error) and message count.
 - **Request / Response correlation** — Matches outgoing messages to incoming responses by `id`, shows wait times and pending indicators. Supports **multiple responses** per request with sub-tabs (Response 1, Response 2, …).
 - **Cross-navigation via ID** — In the correlated view (Response/Request tab), the `id` field in the JSON tree is a hyperlink that selects the correlated message.
-- **Stack traces** — Captures call stacks for every sent message; stack frames are clickable and open the source file in the DevTools Sources panel.
+- **Stack traces** — Captures call stacks for every sent message and WebSocket connection. Stack frames are clickable and open the corresponding source file in the DevTools Sources panel. The injected script strips the `Error` header while preserving `at …` frames, and filters out internal `inject.js` frames for a clean trace.
 - **JSON Tree viewer** — Toggle between a raw text view and an interactive, collapsible JSON tree (DevTools console style) for any message payload. Right-click context menu supports "Copy as string", "Copy as object", and "Copy".
 - **Search & filter** — Full-text search across message payloads, with All / Requests / Responses filter tabs (filter state is local per connection).
 - **Per-connection storage** — Messages are stored per connection (`wsId → messages[]`), making clears and lookups efficient.
