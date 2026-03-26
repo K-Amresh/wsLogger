@@ -1,0 +1,24 @@
+{
+  "name": "WS Logger DevTools",
+  "version": "1.0",
+  "manifest_version": 3,
+  "description": "Intercepts WebSocket connections and logs messages with stack traces",
+  "devtools_page": "devtools.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": []
+}
