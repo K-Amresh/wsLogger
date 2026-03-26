@@ -1,9 +1,55 @@
 import { create } from "zustand";
 import type { WsConnection, WsMessage } from "./types";
 
-interface CorrelationEntry {
+export interface CorrelationEntry {
   responseIndex: number | null;
   waitTime: number | null;
+}
+
+export interface HarWebSocketMessage {
+  type: "send" | "receive";
+  time: number;
+  opcode: number;
+  data: string;
+  _parsedId?: string | null;
+  _stack?: string;
+}
+
+export interface HarEntry {
+  startedDateTime: string;
+  request: {
+    method: string;
+    url: string;
+    httpVersion: string;
+    headers: unknown[];
+    queryString: unknown[];
+    headersSize: number;
+    bodySize: number;
+  };
+  response: {
+    status: number;
+    statusText: string;
+    httpVersion: string;
+    headers: unknown[];
+    content: { size: number; mimeType: string };
+    redirectURL: string;
+    headersSize: number;
+    bodySize: number;
+  };
+  cache: Record<string, never>;
+  timings: { send: number; wait: number; receive: number };
+  _webSocketMessages: HarWebSocketMessage[];
+  _connectionId: string;
+  _connectionStatus: string;
+  _connectStack: string;
+}
+
+export interface HarExport {
+  log: {
+    version: string;
+    creator: { name: string; version: string };
+    entries: HarEntry[];
+  };
 }
 
 export interface MessageSelection {
@@ -35,9 +81,11 @@ interface Store {
   setRecording: (recording: boolean) => void;
   clearAll: () => void;
   clearConnectionMessages: (connectionId: string) => void;
+  importHar: (har: HarExport) => void;
+  exportHar: () => HarExport;
 }
 
-export const useStore = create<Store>()((set) => ({
+export const useStore = create<Store>()((set, get) => ({
   connections: {},
   messages: {},
   selectedConnectionId: null,
@@ -165,26 +213,149 @@ export const useStore = create<Store>()((set) => ({
         }
       }
 
-      const conn = state.connections[connectionId];
-      const updatedConnections = conn
-        ? {
-            ...state.connections,
-            [connectionId]: { ...conn, messageCount: 0 },
-          }
-        : state.connections;
+      const newConnections = { ...state.connections };
+      delete newConnections[connectionId];
 
       const newSelectedMessage =
         state.selectedMessage?.connectionId === connectionId
           ? null
           : state.selectedMessage;
 
+      const newSelectedConnectionId =
+        state.selectedConnectionId === connectionId
+          ? null
+          : state.selectedConnectionId;
+
       return {
         messages: newMessages,
-        connections: updatedConnections,
+        connections: newConnections,
         correlations: newCorrelations,
         responseToRequest: newRtoR,
         pendingRequests: newPending,
         selectedMessage: newSelectedMessage,
+        selectedConnectionId: newSelectedConnectionId,
       };
     }),
+
+  importHar: (har) => {
+    const connections: Record<string, WsConnection> = {};
+    const messages: Record<string, WsMessage[]> = {};
+    const correlations: Record<string, Record<number, CorrelationEntry>> = {};
+    const responseToRequest: Record<string, Record<number, number>> = {};
+
+    for (const entry of har.log.entries) {
+      const connId = entry._connectionId ?? crypto.randomUUID();
+      const connMsgs: WsMessage[] = [];
+      const connCorr: Record<number, CorrelationEntry> = {};
+      const connRtoR: Record<number, number> = {};
+      const pending: Record<string, number> = {};
+
+      for (const wsMsg of entry._webSocketMessages) {
+        const msg: WsMessage = {
+          connectionId: connId,
+          direction: wsMsg.type === "send" ? "sent" : "received",
+          data: wsMsg.data,
+          parsedId: wsMsg._parsedId ?? null,
+          stack: wsMsg._stack ?? "",
+          timestamp: wsMsg.time * 1000,
+        };
+
+        const idx = connMsgs.length;
+        connMsgs.push(msg);
+
+        if (msg.parsedId != null) {
+          const key = msg.parsedId;
+          if (msg.direction === "sent") {
+            pending[key] = idx;
+            connCorr[idx] = { responseIndex: null, waitTime: null };
+          } else {
+            const reqIdx = pending[key];
+            if (reqIdx != null) {
+              const waitTime = msg.timestamp - connMsgs[reqIdx]!.timestamp;
+              connCorr[reqIdx] = { responseIndex: idx, waitTime };
+              connRtoR[idx] = reqIdx;
+              delete pending[key];
+            }
+          }
+        }
+      }
+
+      connections[connId] = {
+        id: connId,
+        url: entry.request.url,
+        status:
+          (entry._connectionStatus as WsConnection["status"]) ?? "closed",
+        connectStack: entry._connectStack ?? "",
+        createdAt: new Date(entry.startedDateTime).getTime(),
+        messageCount: connMsgs.length,
+      };
+
+      messages[connId] = connMsgs;
+      if (Object.keys(connCorr).length > 0) correlations[connId] = connCorr;
+      if (Object.keys(connRtoR).length > 0)
+        responseToRequest[connId] = connRtoR;
+    }
+
+    set({
+      connections,
+      messages,
+      correlations,
+      responseToRequest,
+      pendingRequests: {},
+      selectedConnectionId: null,
+      selectedMessage: null,
+    });
+  },
+
+  exportHar: (): HarExport => {
+    const s = get();
+    const entries: HarEntry[] = [];
+
+    for (const [connId, conn] of Object.entries(s.connections)) {
+      const msgs = s.messages[connId] ?? [];
+      entries.push({
+        startedDateTime: new Date(conn.createdAt).toISOString(),
+        request: {
+          method: "GET",
+          url: conn.url,
+          httpVersion: "HTTP/1.1",
+          headers: [],
+          queryString: [],
+          headersSize: -1,
+          bodySize: -1,
+        },
+        response: {
+          status: 101,
+          statusText: "Switching Protocols",
+          httpVersion: "HTTP/1.1",
+          headers: [],
+          content: { size: 0, mimeType: "" },
+          redirectURL: "",
+          headersSize: -1,
+          bodySize: -1,
+        },
+        cache: {},
+        timings: { send: 0, wait: 0, receive: 0 },
+        _webSocketMessages: msgs.map((m) => ({
+          type: m.direction === "sent" ? ("send" as const) : ("receive" as const),
+          time: m.timestamp / 1000,
+          opcode: 1,
+          data: m.data,
+          _parsedId: m.parsedId,
+          _stack: m.stack,
+        })),
+        _connectionId: connId,
+        _connectionStatus: conn.status,
+        _connectStack: conn.connectStack,
+      });
+    }
+
+    return {
+      log: {
+        version: "1.2",
+        creator: { name: "WS Logger", version: "1.0.0" },
+        entries,
+      },
+    };
+  },
 }));

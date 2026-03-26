@@ -1,5 +1,8 @@
 {
   "name": "ws-logger-devtools",
+  "author": "Amresh Kumar",
+  "license": "MIT",
+  "description": "A Chrome DevTools extension that logs WebSocket messages with stack traces",
   "private": true,
   "version": "1.0.0",
   "type": "module",

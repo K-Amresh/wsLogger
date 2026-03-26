@@ -26,23 +26,31 @@ export function useChromeConnection() {
           });
           break;
         case "ws-open":
-          store.updateConnectionStatus(msg.connectionId as string, "open");
-          break;
         case "ws-close":
-          store.updateConnectionStatus(msg.connectionId as string, "closed");
+        case "ws-error": {
+          const connId = msg.connectionId as string;
+          if (store.connections[connId]) {
+            const status =
+              msg.type === "ws-open"
+                ? "open"
+                : msg.type === "ws-close"
+                  ? "closed"
+                  : "error";
+            store.updateConnectionStatus(connId, status);
+          }
           break;
-        case "ws-error":
-          store.updateConnectionStatus(msg.connectionId as string, "error");
-          break;
+        }
         case "ws-message":
-          store.addMessage({
-            connectionId: msg.connectionId as string,
-            direction: msg.direction as "sent" | "received",
-            data: (msg.data as string) || "",
-            parsedId: (msg.parsedId as string) ?? null,
-            stack: (msg.stack as string) || "",
-            timestamp: msg.timestamp as number,
-          });
+          if (store.connections[msg.connectionId as string]) {
+            store.addMessage({
+              connectionId: msg.connectionId as string,
+              direction: msg.direction as "sent" | "received",
+              data: (msg.data as string) || "",
+              parsedId: (msg.parsedId as string) ?? null,
+              stack: (msg.stack as string) || "",
+              timestamp: msg.timestamp as number,
+            });
+          }
           break;
       }
     };

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 function previewValue(value: unknown, maxKeys = 3): string {
   if (value === null) return "null";
@@ -28,6 +28,85 @@ function previewValue(value: unknown, maxKeys = 3): string {
   return String(value);
 }
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+function primitiveToString(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  value: unknown;
+}
+
+function ContextMenu({
+  state,
+  onClose,
+}: {
+  state: ContextMenuState;
+  onClose: () => void;
+}) {
+  const { x, y, value } = state;
+  const isExpandable =
+    value !== null && typeof value === "object";
+
+  useEffect(() => {
+    const handle = () => onClose();
+    document.addEventListener("click", handle);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") onClose();
+    });
+    return () => {
+      document.removeEventListener("click", handle);
+    };
+  }, [onClose]);
+
+  if (isExpandable) {
+    return (
+      <div className="json-context-menu" style={{ top: y, left: x }}>
+        <button
+          className="json-context-item"
+          onClick={() => {
+            copyToClipboard(JSON.stringify(value));
+            onClose();
+          }}
+        >
+          Copy as string
+        </button>
+        <button
+          className="json-context-item"
+          onClick={() => {
+            copyToClipboard(JSON.stringify(value, null, 2));
+            onClose();
+          }}
+        >
+          Copy as object
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="json-context-menu" style={{ top: y, left: x }}>
+      <button
+        className="json-context-item"
+        onClick={() => {
+          copyToClipboard(primitiveToString(value));
+          onClose();
+        }}
+      >
+        Copy
+      </button>
+    </div>
+  );
+}
+
 function PrimitiveValue({ value }: { value: unknown }) {
   if (value === null) return <span className="json-null">null</span>;
   if (value === undefined)
@@ -46,11 +125,13 @@ function JsonNode({
   value,
   depth,
   defaultExpanded,
+  onContextMenu,
 }: {
   label?: string;
   value: unknown;
   depth: number;
   defaultExpanded: boolean;
+  onContextMenu: (e: React.MouseEvent, value: unknown) => void;
 }) {
   const isObject =
     value !== null && typeof value === "object" && !Array.isArray(value);
@@ -59,9 +140,19 @@ function JsonNode({
 
   const [expanded, setExpanded] = useState(defaultExpanded);
 
+  const handleContext = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContextMenu(e, value);
+  };
+
   if (!isExpandable) {
     return (
-      <div className="json-node" style={{ paddingLeft: depth * 16 }}>
+      <div
+        className="json-node"
+        style={{ paddingLeft: depth * 16 }}
+        onContextMenu={handleContext}
+      >
         {label != null && (
           <>
             <span className="json-key">{label}</span>
@@ -86,6 +177,7 @@ function JsonNode({
         className="json-node json-expandable"
         style={{ paddingLeft: depth * 16 }}
         onClick={() => setExpanded(!expanded)}
+        onContextMenu={handleContext}
       >
         <span className="json-toggle">{expanded ? "\u25BC" : "\u25B6"}</span>
         {label != null && (
@@ -110,6 +202,7 @@ function JsonNode({
               value={val}
               depth={depth + 1}
               defaultExpanded={false}
+              onContextMenu={onContextMenu}
             />
           ))}
           <div
@@ -133,13 +226,30 @@ export function JsonTree({ data }: { data: string }) {
     }
   }, [data]);
 
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, value: unknown) => {
+      setCtxMenu({ x: e.clientX, y: e.clientY, value });
+    },
+    [],
+  );
+
+  const closeMenu = useCallback(() => setCtxMenu(null), []);
+
   if (parsed === undefined) {
     return <pre className="detail-code">{data}</pre>;
   }
 
   return (
     <div className="json-tree">
-      <JsonNode value={parsed} depth={0} defaultExpanded={true} />
+      <JsonNode
+        value={parsed}
+        depth={0}
+        defaultExpanded={true}
+        onContextMenu={handleContextMenu}
+      />
+      {ctxMenu && <ContextMenu state={ctxMenu} onClose={closeMenu} />}
     </div>
   );
 }
