@@ -3,6 +3,11 @@
   "version": "1.0",
   "manifest_version": 3,
   "description": "Intercepts WebSocket connections and logs messages with stack traces",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "devtools_page": "devtools.html",
   "background": {
     "service_worker": "background.js"

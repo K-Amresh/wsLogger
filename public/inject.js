@@ -7,6 +7,11 @@
     window.postMessage({ source: PREFIX, ...data }, "*");
   }
 
+  function captureStack() {
+    var stack = new Error().stack || "";
+    return stack.replace(/^Error\n/, "");
+  }
+
   function tryParseJson(raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -22,7 +27,7 @@
       : new OriginalWebSocket(url);
 
     const connectionId = "ws_" + Date.now() + "_" + connectionCounter++;
-    const connectStack = new Error().stack || "";
+    const connectStack = captureStack();
 
     post({
       type: "ws-connect",
@@ -59,14 +64,14 @@
         connectionId: connectionId,
         data: result.formatted,
         parsedId: result.id,
-        stack: new Error().stack || "",
+        stack: captureStack(),
         timestamp: Date.now(),
       });
     });
 
     var originalSend = ws.send.bind(ws);
     ws.send = function (msg) {
-      var stack = new Error().stack || "";
+      var stack = captureStack();
       var result = tryParseJson(msg);
       post({
         type: "ws-message",
