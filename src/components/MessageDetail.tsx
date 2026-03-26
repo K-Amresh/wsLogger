@@ -113,6 +113,7 @@ type DetailTab = "data" | "correlated" | "stack";
 interface CorrResponse {
   data: string;
   waitTime: number;
+  msgIndex: number;
 }
 
 export function MessageDetail() {
@@ -136,6 +137,7 @@ export function MessageDetail() {
     corrResponseCount,
     corrResponsesJson,
     corrRequestData,
+    corrRequestIndex,
   } = useStore(
     useShallow((s) => {
       const nil = {
@@ -145,6 +147,7 @@ export function MessageDetail() {
         corrResponseCount: 0,
         corrResponsesJson: "[]",
         corrRequestData: null,
+        corrRequestIndex: null,
       } as const;
       if (!s.selectedMessage) return nil;
 
@@ -159,6 +162,7 @@ export function MessageDetail() {
         const responses = direct.responseIndices.map((ri, i) => ({
           data: connMsgs[ri]?.data ?? "",
           waitTime: direct.waitTimes[i] ?? 0,
+          msgIndex: ri,
         }));
         return {
           corrType: "request" as const,
@@ -167,6 +171,7 @@ export function MessageDetail() {
           corrResponseCount: direct.responseIndices.length,
           corrResponsesJson: JSON.stringify(responses),
           corrRequestData: null,
+          corrRequestIndex: null,
         };
       }
 
@@ -182,6 +187,7 @@ export function MessageDetail() {
             corrResponseCount: 0,
             corrResponsesJson: "[]",
             corrRequestData: requestMsg?.data ?? null,
+            corrRequestIndex: requestIdx,
           };
         }
       }
@@ -326,11 +332,31 @@ export function MessageDetail() {
                   )}
                   <DataView
                     data={corrResponses[activeResponseIdx]?.data ?? ""}
+                    onIdClick={() => {
+                      const r = corrResponses[activeResponseIdx];
+                      if (r) {
+                        selectMessage({
+                          connectionId: selectedMessage.connectionId,
+                          index: r.msgIndex,
+                        });
+                      }
+                    }}
                   />
                 </>
               )
             ) : corrRequestData ? (
-              <DataView data={corrRequestData} />
+              <DataView
+                data={corrRequestData}
+                onIdClick={
+                  corrRequestIndex != null
+                    ? () =>
+                        selectMessage({
+                          connectionId: selectedMessage.connectionId,
+                          index: corrRequestIndex,
+                        })
+                    : undefined
+                }
+              />
             ) : (
               <div className="detail-pending-body">
                 <span className="muted">No correlated message found</span>

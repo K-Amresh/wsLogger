@@ -126,12 +126,14 @@ function JsonNode({
   depth,
   defaultExpanded,
   onContextMenu,
+  onIdClick,
 }: {
   label?: string;
   value: unknown;
   depth: number;
   defaultExpanded: boolean;
   onContextMenu: (e: React.MouseEvent, value: unknown) => void;
+  onIdClick?: () => void;
 }) {
   const isObject =
     value !== null && typeof value === "object" && !Array.isArray(value);
@@ -146,6 +148,8 @@ function JsonNode({
     onContextMenu(e, value);
   };
 
+  const isIdLink = label === "id" && onIdClick != null;
+
   if (!isExpandable) {
     return (
       <div
@@ -159,7 +163,19 @@ function JsonNode({
             <span className="json-colon">: </span>
           </>
         )}
-        <PrimitiveValue value={value} />
+        {isIdLink ? (
+          <span
+            className="json-id-link"
+            onClick={(e) => {
+              e.stopPropagation();
+              onIdClick();
+            }}
+          >
+            <PrimitiveValue value={value} />
+          </span>
+        ) : (
+          <PrimitiveValue value={value} />
+        )}
       </div>
     );
   }
@@ -203,6 +219,7 @@ function JsonNode({
               depth={depth + 1}
               defaultExpanded={false}
               onContextMenu={onContextMenu}
+              onIdClick={onIdClick}
             />
           ))}
           <div
@@ -217,7 +234,13 @@ function JsonNode({
   );
 }
 
-export function JsonTree({ data }: { data: string }) {
+export function JsonTree({
+  data,
+  onIdClick,
+}: {
+  data: string;
+  onIdClick?: () => void;
+}) {
   const parsed = useMemo(() => {
     try {
       return JSON.parse(data) as unknown;
@@ -248,14 +271,21 @@ export function JsonTree({ data }: { data: string }) {
         depth={0}
         defaultExpanded={true}
         onContextMenu={handleContextMenu}
+        onIdClick={onIdClick}
       />
       {ctxMenu && <ContextMenu state={ctxMenu} onClose={closeMenu} />}
     </div>
   );
 }
 
-export function DataView({ data }: { data: string }) {
-  const [view, setView] = useState<"tree" | "raw">("raw");
+export function DataView({
+  data,
+  onIdClick,
+}: {
+  data: string;
+  onIdClick?: () => void;
+}) {
+  const [view, setView] = useState<"tree" | "raw">("tree");
 
   return (
     <div className="data-view">
@@ -276,7 +306,7 @@ export function DataView({ data }: { data: string }) {
       {view === "raw" ? (
         <pre className="detail-code">{data}</pre>
       ) : (
-        <JsonTree data={data} />
+        <JsonTree data={data} onIdClick={onIdClick} />
       )}
     </div>
   );
