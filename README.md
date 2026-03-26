@@ -6,13 +6,15 @@ A Chrome/Edge DevTools extension that intercepts all WebSocket connections on a 
 
 - **Live WebSocket interception** — Captures all `WebSocket` connections and their messages in real time via monkey-patching (no permissions required beyond content scripts).
 - **Connection sidebar** — Lists every WebSocket connection with its status (connecting / open / closed / error) and message count.
-- **Request / Response correlation** — Matches outgoing messages to incoming responses by `id`, shows wait times and pending indicators.
+- **Request / Response correlation** — Matches outgoing messages to incoming responses by `id`, shows wait times and pending indicators. Supports **multiple responses** per request with sub-tabs (Response 1, Response 2, …).
+- **Cross-navigation via ID** — In the correlated view (Response/Request tab), the `id` field in the JSON tree is a hyperlink that selects the correlated message.
 - **Stack traces** — Captures call stacks for every sent message; stack frames are clickable and open the source file in the DevTools Sources panel.
-- **JSON Tree viewer** — Toggle between a raw text view and an interactive, collapsible JSON tree (DevTools console style) for any message payload.
-- **Search & filter** — Full-text search across message payloads, with All / Requests / Responses filter tabs.
+- **JSON Tree viewer** — Toggle between a raw text view and an interactive, collapsible JSON tree (DevTools console style) for any message payload. Right-click context menu supports "Copy as string", "Copy as object", and "Copy".
+- **Search & filter** — Full-text search across message payloads, with All / Requests / Responses filter tabs (filter state is local per connection).
 - **Per-connection storage** — Messages are stored per connection (`wsId → messages[]`), making clears and lookups efficient.
+- **HAR import / export** — Export captured WebSocket data as a HAR 1.2 file; import previously exported `.har` files to restore sessions.
 - **Resizable detail panel** — Drag the handle to resize the message detail area.
-- **Recording toggle** — Pause and resume capture; state is preserved across page navigations.
+- **Recording toggle** — Pause and resume capture; state is preserved across page navigations (defaults to off).
 
 ## Installation
 
@@ -79,13 +81,17 @@ wsLogger/
 │   │                                  incoming events to the store, handles page
 │   │                                  navigation resets
 │   └── components/
-│       ├── Toolbar.tsx              # Top bar — record toggle, active count, search
-│       ├── ConnectionList.tsx       # Left sidebar — connection list with status dots
+│       ├── Toolbar.tsx              # Top bar — record toggle, active count, search,
+│       │                              HAR export/import
+│       ├── ConnectionList.tsx       # Left sidebar — connection list with status dots,
+│       │                              per-connection clear
 │       ├── MessageList.tsx          # Center — filtered message rows with timestamps,
-│       │                              correlation badges, filter tabs
-│       ├── MessageDetail.tsx        # Bottom — tabbed detail view (Data, Response,
-│       │                              Stack Trace), pending timers, metadata
-│       └── JsonTree.tsx             # JSON tree viewer with Raw/Tree toggle (DataView)
+│       │                              correlation badges, filter tabs, clear button
+│       ├── MessageDetail.tsx        # Bottom — tabbed detail view (Data, Response/
+│       │                              Request, Stack Trace), multi-response sub-tabs,
+│       │                              pending timers, cross-navigation via ID links
+│       └── JsonTree.tsx             # JSON tree viewer with Raw/Tree toggle (DataView),
+│                                      context menu (copy), clickable ID links
 │
 ├── index.html                       # Vite HTML entry
 ├── vite.config.ts                   # Vite config (React plugin, output to dist/)
