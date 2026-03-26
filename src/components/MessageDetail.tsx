@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useStore } from "../store";
 import { useShallow } from "zustand/react/shallow";
 import { formatDuration } from "../utils";
@@ -110,6 +110,11 @@ function PendingTimer({ sentAt }: { sentAt: number }) {
 
 type DetailTab = "data" | "correlated" | "stack";
 
+interface CorrResponse {
+  data: string;
+  waitTime: number;
+}
+
 export function MessageDetail() {
   const selectedMessage = useStore((s) => s.selectedMessage);
   const selectMessage = useStore((s) => s.selectMessage);
@@ -119,13 +124,27 @@ export function MessageDetail() {
     return msgs?.[s.selectedMessage.index] ?? null;
   });
 
-  const { corrType, corrResponseIndex, corrWaitTime, corrData } = useStore(
+  const connectionUrl = useStore((s) => {
+    if (!s.selectedMessage) return null;
+    return s.connections[s.selectedMessage.connectionId]?.url ?? null;
+  });
+
+  const {
+    corrType,
+    corrIsPending,
+    corrFirstWaitTime,
+    corrResponseCount,
+    corrResponsesJson,
+    corrRequestData,
+  } = useStore(
     useShallow((s) => {
       const nil = {
         corrType: null,
-        corrResponseIndex: null,
-        corrWaitTime: null,
-        corrData: null,
+        corrIsPending: false,
+        corrFirstWaitTime: null,
+        corrResponseCount: 0,
+        corrResponsesJson: "[]",
+        corrRequestData: null,
       } as const;
       if (!s.selectedMessage) return nil;
 
@@ -137,15 +156,17 @@ export function MessageDetail() {
 
       const direct = connCorr[index];
       if (direct) {
-        const responseMsg =
-          direct.responseIndex != null
-            ? connMsgs[direct.responseIndex]
-            : null;
+        const responses = direct.responseIndices.map((ri, i) => ({
+          data: connMsgs[ri]?.data ?? "",
+          waitTime: direct.waitTimes[i] ?? 0,
+        }));
         return {
           corrType: "request" as const,
-          corrResponseIndex: direct.responseIndex,
-          corrWaitTime: direct.waitTime,
-          corrData: responseMsg?.data ?? null,
+          corrIsPending: direct.responseIndices.length === 0,
+          corrFirstWaitTime: direct.waitTimes[0] ?? null,
+          corrResponseCount: direct.responseIndices.length,
+          corrResponsesJson: JSON.stringify(responses),
+          corrRequestData: null,
         };
       }
 
@@ -156,9 +177,11 @@ export function MessageDetail() {
           const requestMsg = connMsgs[requestIdx];
           return {
             corrType: "response" as const,
-            corrResponseIndex: index,
-            corrWaitTime: corr.waitTime,
-            corrData: requestMsg?.data ?? null,
+            corrIsPending: false,
+            corrFirstWaitTime: corr.waitTimes[0] ?? null,
+            corrResponseCount: 0,
+            corrResponsesJson: "[]",
+            corrRequestData: requestMsg?.data ?? null,
           };
         }
       }
@@ -167,11 +190,24 @@ export function MessageDetail() {
     }),
   );
 
+  const corrResponses = useMemo<CorrResponse[]>(
+    () => JSON.parse(corrResponsesJson),
+    [corrResponsesJson],
+  );
+
   const [activeTab, setActiveTab] = useState<DetailTab>("data");
+  const [activeResponseIdx, setActiveResponseIdx] = useState(0);
 
   useEffect(() => {
     setActiveTab("data");
+    setActiveResponseIdx(0);
   }, [selectedMessage]);
+
+  useEffect(() => {
+    if (activeResponseIdx >= corrResponses.length && corrResponses.length > 0) {
+      setActiveResponseIdx(corrResponses.length - 1);
+    }
+  }, [corrResponses.length, activeResponseIdx]);
 
   if (!selectedMessage || !message) {
     return (
@@ -183,7 +219,6 @@ export function MessageDetail() {
 
   const isSent = message.direction === "sent";
   const hasCorrelation = corrType != null;
-  const isPending = isSent && hasCorrelation && corrResponseIndex == null;
   const correlatedLabel = isSent ? "Response" : "Request";
 
   return (
@@ -198,26 +233,31 @@ export function MessageDetail() {
           </button>
           {hasCorrelation && (
             <button
-              className={`detail-tab ${activeTab === "correlated" ? "active" : ""} ${isPending ? "tab-pending" : ""}`}
+              className={`detail-tab ${activeTab === "correlated" ? "active" : ""} ${corrIsPending ? "tab-pending" : ""}`}
               onClick={() => setActiveTab("correlated")}
             >
               {correlatedLabel}
-              {isPending && <span className="pending-dot" />}
-              {corrWaitTime != null && (
+              {corrIsPending && <span className="pending-dot" />}
+              {corrFirstWaitTime != null && (
                 <span className="tab-wait-time">
-                  {formatDuration(corrWaitTime)}
+                  {formatDuration(corrFirstWaitTime)}
+                </span>
+              )}
+              {corrResponseCount > 1 && (
+                <span className="tab-wait-time">
+                  ({corrResponseCount})
                 </span>
               )}
             </button>
           )}
-          {
-            isSent ? <button
-            className={`detail-tab ${activeTab === "stack" ? "active" : ""}`}
-            onClick={() => setActiveTab("stack")}
-          >
-            Stack Trace
-          </button> : null
-          }
+          {isSent ? (
+            <button
+              className={`detail-tab ${activeTab === "stack" ? "active" : ""}`}
+              onClick={() => setActiveTab("stack")}
+            >
+              Stack Trace
+            </button>
+          ) : null}
         </div>
         <div className="detail-meta">
           <span className={`direction-badge ${message.direction}`}>
@@ -226,13 +266,20 @@ export function MessageDetail() {
           {message.parsedId != null && (
             <span className="detail-id">ID: {message.parsedId}</span>
           )}
-          {corrWaitTime != null && (
-            <span className="detail-wait">{formatDuration(corrWaitTime)}</span>
+          {corrFirstWaitTime != null && (
+            <span className="detail-wait">
+              {formatDuration(corrFirstWaitTime)}
+            </span>
           )}
-          {isPending && (
+          {corrIsPending && (
             <span className="detail-pending">
               <span className="spinner small" />
               <PendingTimer sentAt={message.timestamp} />
+            </span>
+          )}
+          {connectionUrl && (
+            <span className="detail-url" title={connectionUrl}>
+              {connectionUrl}
             </span>
           )}
         </div>
@@ -246,20 +293,51 @@ export function MessageDetail() {
       </div>
       <div className="detail-body">
         {activeTab === "data" && <DataView data={message.data} />}
-        {activeTab === "correlated" &&
-          (isPending ? (
-            <div className="detail-pending-body">
-              <span className="spinner large" />
-              <span>Waiting for response...</span>
-              <PendingTimer sentAt={message.timestamp} />
-            </div>
-          ) : corrData ? (
-            <DataView data={corrData} />
-          ) : (
-            <div className="detail-pending-body">
-              <span className="muted">No correlated message found</span>
-            </div>
-          ))}
+        {activeTab === "correlated" && (
+          <>
+            {corrIsPending ? (
+              <div className="detail-pending-body">
+                <span className="spinner large" />
+                <span>Waiting for response...</span>
+                <PendingTimer sentAt={message.timestamp} />
+              </div>
+            ) : corrType === "request" ? (
+              corrResponses.length === 0 ? (
+                <div className="detail-pending-body">
+                  <span className="muted">No correlated message found</span>
+                </div>
+              ) : (
+                <>
+                  {corrResponses.length > 1 && (
+                    <div className="response-subtabs">
+                      {corrResponses.map((r, i) => (
+                        <button
+                          key={i}
+                          className={`response-subtab ${activeResponseIdx === i ? "active" : ""}`}
+                          onClick={() => setActiveResponseIdx(i)}
+                        >
+                          Response {i + 1}
+                          <span className="subtab-time">
+                            {formatDuration(r.waitTime)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <DataView
+                    data={corrResponses[activeResponseIdx]?.data ?? ""}
+                  />
+                </>
+              )
+            ) : corrRequestData ? (
+              <DataView data={corrRequestData} />
+            ) : (
+              <div className="detail-pending-body">
+                <span className="muted">No correlated message found</span>
+              </div>
+            )}
+          </>
+        )}
         {activeTab === "stack" && <StackTraceView stack={message.stack} />}
       </div>
     </div>

@@ -42,7 +42,6 @@ export function MessageList() {
 
   const [filter, setFilter] = useState<MessageFilter>("all");
   const listRef = useRef<HTMLDivElement>(null);
-  const prevCountRef = useRef(0);
 
   useEffect(() => {
     setFilter("all");
@@ -90,13 +89,6 @@ export function MessageList() {
   }, [flat, filter, searchQuery]);
 
   const totalMessages = flat.length;
-
-  useEffect(() => {
-    if (filtered.length > prevCountRef.current && listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-    prevCountRef.current = filtered.length;
-  }, [filtered.length]);
 
   const isSelected = (sel: MessageSelection) =>
     selectedMessage != null &&
@@ -167,7 +159,7 @@ export function MessageList() {
                 {truncate(msg.data, 120)}
               </span>
               {corr &&
-                (corr.responseIndex == null ? (
+                (corr.responseIndices.length === 0 ? (
                   <span
                     className="pending-badge"
                     title="Waiting for response"
@@ -176,7 +168,12 @@ export function MessageList() {
                   </span>
                 ) : (
                   <span className="wait-badge" title="Response time">
-                    {formatDuration(corr.waitTime ?? 0)}
+                    {formatDuration(corr.waitTimes[0] ?? 0)}
+                    {corr.responseIndices.length > 1 && (
+                      <span className="response-count">
+                        {" "}({corr.responseIndices.length})
+                      </span>
+                    )}
                   </span>
                 ))}
               <span className="message-time">

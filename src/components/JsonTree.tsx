@@ -255,7 +255,7 @@ export function JsonTree({ data }: { data: string }) {
 }
 
 export function DataView({ data }: { data: string }) {
-  const [view, setView] = useState<"tree" | "raw">("tree");
+  const [view, setView] = useState<"tree" | "raw">("raw");
 
   return (
     <div className="data-view">

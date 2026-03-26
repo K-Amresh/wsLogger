@@ -2,8 +2,8 @@ import { create } from "zustand";
 import type { WsConnection, WsMessage } from "./types";
 
 export interface CorrelationEntry {
-  responseIndex: number | null;
-  waitTime: number | null;
+  responseIndices: number[];
+  waitTimes: number[];
 }
 
 export interface HarWebSocketMessage {
@@ -140,7 +140,7 @@ export const useStore = create<Store>()((set, get) => ({
           newPending = { ...newPending, [key]: msgIndex };
           connCorr = {
             ...connCorr,
-            [msgIndex]: { responseIndex: null, waitTime: null },
+            [msgIndex]: { responseIndices: [], waitTimes: [] },
           };
           corrChanged = true;
         } else {
@@ -149,13 +149,18 @@ export const useStore = create<Store>()((set, get) => ({
             const requestMsg = connMsgs[requestIndex];
             if (requestMsg) {
               const waitTime = msg.timestamp - requestMsg.timestamp;
+              const existing = connCorr[requestIndex] ?? {
+                responseIndices: [],
+                waitTimes: [],
+              };
               connCorr = {
                 ...connCorr,
-                [requestIndex]: { responseIndex: msgIndex, waitTime },
+                [requestIndex]: {
+                  responseIndices: [...existing.responseIndices, msgIndex],
+                  waitTimes: [...existing.waitTimes, waitTime],
+                },
               };
               connRtoR = { ...connRtoR, [msgIndex]: requestIndex };
-              newPending = { ...newPending };
-              delete newPending[key];
               corrChanged = true;
             }
           }
@@ -267,14 +272,20 @@ export const useStore = create<Store>()((set, get) => ({
           const key = msg.parsedId;
           if (msg.direction === "sent") {
             pending[key] = idx;
-            connCorr[idx] = { responseIndex: null, waitTime: null };
+            connCorr[idx] = { responseIndices: [], waitTimes: [] };
           } else {
             const reqIdx = pending[key];
             if (reqIdx != null) {
               const waitTime = msg.timestamp - connMsgs[reqIdx]!.timestamp;
-              connCorr[reqIdx] = { responseIndex: idx, waitTime };
+              const existing = connCorr[reqIdx] ?? {
+                responseIndices: [],
+                waitTimes: [],
+              };
+              connCorr[reqIdx] = {
+                responseIndices: [...existing.responseIndices, idx],
+                waitTimes: [...existing.waitTimes, waitTime],
+              };
               connRtoR[idx] = reqIdx;
-              delete pending[key];
             }
           }
         }
