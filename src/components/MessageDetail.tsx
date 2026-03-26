@@ -125,11 +125,6 @@ export function MessageDetail() {
     return msgs?.[s.selectedMessage.index] ?? null;
   });
 
-  const connectionUrl = useStore((s) => {
-    if (!s.selectedMessage) return null;
-    return s.connections[s.selectedMessage.connectionId]?.url ?? null;
-  });
-
   const {
     corrType,
     corrIsPending,
@@ -281,11 +276,6 @@ export function MessageDetail() {
             <span className="detail-pending">
               <span className="spinner small" />
               <PendingTimer sentAt={message.timestamp} />
-            </span>
-          )}
-          {connectionUrl && (
-            <span className="detail-url" title={connectionUrl}>
-              {connectionUrl}
             </span>
           )}
         </div>
