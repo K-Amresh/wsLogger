@@ -412,7 +412,7 @@ export function ConnectionTools() {
           {mocks.map((m: MockResponse & { action?: string }) => {
             const label = m.match ?? m.action ?? "";
             const rowKey = normalizeMockAction(label) || label;
-            const sendThrough = m.sendToServer === true;
+            const sendThrough = m.sendToServer !== false;
             const isEditing =
               editingMock !== null && editingMock.prevLabel === label;
             const showMatch = isEditing ? draftMatch : label;

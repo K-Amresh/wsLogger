@@ -165,7 +165,7 @@
       var shouldSendOriginal = true;
       var shouldApplyMock = false;
       if (mock && matchKey) {
-        if (mock.sendToServer === true) {
+        if (mock.sendToServer !== false) {
           shouldSendOriginal = false;
           shouldApplyMock = true;
         } else {

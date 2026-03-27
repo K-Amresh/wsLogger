@@ -62,7 +62,7 @@ export interface MockResponse {
   /** Matches outgoing JSON-RPC/LSP `method` or legacy `action`. */
   match: string;
   response: string;
-  /** If true (green), matching sends use mock only (no real send). If false (red), passthrough to server only (no mock). */
+  /** Green by default: mock only (no real send). Set `false` for red (server only, no mock). */
   sendToServer?: boolean;
 }
 
@@ -232,7 +232,7 @@ export const useStore = create<Store>()((set, get) => ({
             {
               match,
               response: mock.response,
-              sendToServer: mock.sendToServer === true,
+              sendToServer: mock.sendToServer !== false,
             },
           ],
         },
@@ -255,7 +255,7 @@ export const useStore = create<Store>()((set, get) => ({
     next[idx] = {
       match: newMatch,
       response: updates.response,
-      sendToServer: existing.sendToServer === true,
+      sendToServer: existing.sendToServer !== false,
     };
     set({
       mockResponses: { ...state.mockResponses, [connectionId]: next },
@@ -282,7 +282,7 @@ export const useStore = create<Store>()((set, get) => ({
       const key = normalizeMockAction(matchKey);
       const next = list.map((m) => {
         if (mockEntryKey(m) !== key) return m;
-        const cur = m.sendToServer === true;
+        const cur = m.sendToServer !== false;
         return { ...m, sendToServer: !cur };
       });
       return {
