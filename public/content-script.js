@@ -12,3 +12,8 @@ window.addEventListener("message", (event) => {
     // Extension context invalidated (e.g. extension reloaded)
   }
 });
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.source !== "__WS_LOGGER_CMD__") return;
+  window.postMessage(message, "*");
+});

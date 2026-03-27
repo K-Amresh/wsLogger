@@ -3,6 +3,7 @@ import { useChromeConnection } from "./hooks/useChromeConnection";
 import { useStore } from "./store";
 import { Toolbar } from "./components/Toolbar";
 import { ConnectionList } from "./components/ConnectionList";
+import { ConnectionTools } from "./components/ConnectionTools";
 import { MessageList } from "./components/MessageList";
 import { MessageDetail } from "./components/MessageDetail";
 
@@ -40,7 +41,10 @@ export default function App() {
     <div className="app">
       <Toolbar />
       <div className="main-layout">
-        <ConnectionList />
+        <div className="sidebar">
+          <ConnectionList />
+          <ConnectionTools />
+        </div>
         <div className="content-area" ref={contentRef}>
           <MessageList />
           {hasSelection && (

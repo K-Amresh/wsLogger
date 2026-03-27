@@ -23,13 +23,14 @@ export function ConnectionList() {
   const clearConnectionMessages = useStore(
     (s) => s.clearConnectionMessages,
   );
+  const removeConnection = useStore((s) => s.removeConnection);
 
   const entries = Object.values(connections).sort(
     (a, b) => b.createdAt - a.createdAt,
   );
 
   return (
-    <div className="sidebar">
+    <div className="connection-list-panel">
       <div className="sidebar-header">
         <span>Connections</span>
         {selectedId && (
@@ -73,14 +74,37 @@ export function ConnectionList() {
                 {conn.status} &middot; {conn.messageCount} msgs
               </span>
             </div>
-            {conn.messageCount > 0 && (
+            <div className="conn-item-actions">
+              {conn.messageCount > 0 && (
+                <button
+                  className="conn-clear-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    clearConnectionMessages(conn.id);
+                  }}
+                  title="Clear messages for this connection"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                  >
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                    <path
+                      fillRule="evenodd"
+                      d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+                    />
+                  </svg>
+                </button>
+              )}
               <button
-                className="conn-clear-btn"
+                className="conn-remove-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  clearConnectionMessages(conn.id);
+                  removeConnection(conn.id);
                 }}
-                title="Clear messages for this connection"
+                title="Remove connection (clears its mocks)"
               >
                 <svg
                   width="12"
@@ -88,14 +112,10 @@ export function ConnectionList() {
                   viewBox="0 0 16 16"
                   fill="currentColor"
                 >
-                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                  <path
-                    fillRule="evenodd"
-                    d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-                  />
+                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.15 9.15a.5.5 0 0 1-.7.7L8 8.71l-2.45 2.14a.5.5 0 0 1-.7-.7L7.29 8 4.85 5.55a.5.5 0 0 1 .7-.7L8 7.29l2.45-2.44a.5.5 0 0 1 .7.7L8.71 8l2.44 2.15z" />
                 </svg>
               </button>
-            )}
+            </div>
           </div>
         ))}
       </div>

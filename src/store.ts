@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { WsConnection, WsMessage } from "./types";
+import { normalizeMockAction } from "./utils";
 
 export interface CorrelationEntry {
   responseIndices: number[];
@@ -57,6 +58,16 @@ export interface MessageSelection {
   index: number;
 }
 
+export interface MockResponse {
+  /** Matches outgoing JSON-RPC/LSP `method` or legacy `action`. */
+  match: string;
+  response: string;
+}
+
+function mockEntryKey(m: MockResponse & { action?: string }): string {
+  return normalizeMockAction(m.match ?? m.action ?? "");
+}
+
 interface Store {
   connections: Record<string, WsConnection>;
   messages: Record<string, WsMessage[]>;
@@ -64,6 +75,7 @@ interface Store {
   searchQuery: string;
   selectedMessage: MessageSelection | null;
   isRecording: boolean;
+  mockResponses: Record<string, MockResponse[]>;
 
   pendingRequests: Record<string, number>;
   correlations: Record<string, Record<number, CorrelationEntry>>;
@@ -79,8 +91,13 @@ interface Store {
   setSearchQuery: (query: string) => void;
   selectMessage: (sel: MessageSelection | null) => void;
   setRecording: (recording: boolean) => void;
-  clearAll: () => void;
+  addMockResponse: (connectionId: string, mock: MockResponse) => void;
+  removeMockResponse: (connectionId: string, matchKey: string) => void;
+  /** Clears messages/connections. Pass resetMocks:true on full page navigation to drop mock rules. */
+  clearAll: (options?: { resetMocks?: boolean }) => void;
   clearConnectionMessages: (connectionId: string) => void;
+  /** Remove connection from the list and drop its mocks/trigger presets (store-backed). */
+  removeConnection: (connectionId: string) => void;
   importHar: (har: HarExport) => void;
   exportHar: () => HarExport;
 }
@@ -92,6 +109,7 @@ export const useStore = create<Store>()((set, get) => ({
   searchQuery: "",
   selectedMessage: null,
   isRecording: false,
+  mockResponses: {},
 
   pendingRequests: {},
   correlations: {},
@@ -189,8 +207,37 @@ export const useStore = create<Store>()((set, get) => ({
 
   setRecording: (isRecording) => set({ isRecording }),
 
-  clearAll: () =>
-    set({
+  addMockResponse: (connectionId, mock) =>
+    set((state) => {
+      const m = mock as MockResponse & { action?: string };
+      const match = normalizeMockAction(m.match ?? m.action ?? "");
+      if (!match) return state;
+      const existing = state.mockResponses[connectionId] ?? [];
+      const filtered = existing.filter(
+        (m) => mockEntryKey(m) !== match,
+      );
+      return {
+        mockResponses: {
+          ...state.mockResponses,
+          [connectionId]: [...filtered, { match, response: mock.response }],
+        },
+      };
+    }),
+
+  removeMockResponse: (connectionId, matchKey) =>
+    set((state) => {
+      const list = state.mockResponses[connectionId];
+      if (!list) return state;
+      const key = normalizeMockAction(matchKey);
+      const next = list.filter((m) => mockEntryKey(m) !== key);
+      const newMocks = { ...state.mockResponses };
+      if (next.length === 0) delete newMocks[connectionId];
+      else newMocks[connectionId] = next;
+      return { mockResponses: newMocks };
+    }),
+
+  clearAll: (options) =>
+    set((state) => ({
       connections: {},
       messages: {},
       selectedConnectionId: null,
@@ -198,7 +245,8 @@ export const useStore = create<Store>()((set, get) => ({
       pendingRequests: {},
       correlations: {},
       responseToRequest: {},
-    }),
+      mockResponses: options?.resetMocks ? {} : state.mockResponses,
+    })),
 
   clearConnectionMessages: (connectionId) =>
     set((state) => {
@@ -238,6 +286,54 @@ export const useStore = create<Store>()((set, get) => ({
         responseToRequest: newRtoR,
         pendingRequests: newPending,
         selectedMessage: newSelectedMessage,
+      };
+    }),
+
+  removeConnection: (connectionId) =>
+    set((state) => {
+      if (!state.connections[connectionId]) return state;
+
+      const newConnections = { ...state.connections };
+      delete newConnections[connectionId];
+
+      const newMessages = { ...state.messages };
+      delete newMessages[connectionId];
+
+      const newCorrelations = { ...state.correlations };
+      delete newCorrelations[connectionId];
+
+      const newRtoR = { ...state.responseToRequest };
+      delete newRtoR[connectionId];
+
+      const newPending = { ...state.pendingRequests };
+      for (const key of Object.keys(newPending)) {
+        if (key.startsWith(connectionId + "::")) {
+          delete newPending[key];
+        }
+      }
+
+      const newMocks = { ...state.mockResponses };
+      delete newMocks[connectionId];
+
+      const newSelectedMessage =
+        state.selectedMessage?.connectionId === connectionId
+          ? null
+          : state.selectedMessage;
+
+      const newSelectedConnectionId =
+        state.selectedConnectionId === connectionId
+          ? null
+          : state.selectedConnectionId;
+
+      return {
+        connections: newConnections,
+        messages: newMessages,
+        correlations: newCorrelations,
+        responseToRequest: newRtoR,
+        pendingRequests: newPending,
+        mockResponses: newMocks,
+        selectedMessage: newSelectedMessage,
+        selectedConnectionId: newSelectedConnectionId,
       };
     }),
 
@@ -312,6 +408,7 @@ export const useStore = create<Store>()((set, get) => ({
       correlations,
       responseToRequest,
       pendingRequests: {},
+      mockResponses: {},
       selectedConnectionId: null,
       selectedMessage: null,
     });

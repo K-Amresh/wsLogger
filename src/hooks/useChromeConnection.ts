@@ -1,5 +1,10 @@
 import { useEffect } from "react";
 import { useStore } from "../store";
+import {
+  registerChromePort,
+  sendMockResponsesSnapshot,
+  unregisterChromePort,
+} from "../chromePageBridge";
 
 export function useChromeConnection() {
   useEffect(() => {
@@ -7,6 +12,8 @@ export function useChromeConnection() {
 
     const port = chrome.runtime.connect({ name: "ws-logger-panel" });
     const tabId = chrome.devtools.inspectedWindow.tabId;
+
+    registerChromePort(port, tabId);
 
     port.postMessage({ type: "init", tabId });
 
@@ -58,12 +65,24 @@ export function useChromeConnection() {
     port.onMessage.addListener(handleMessage);
 
     const onNavigated = () => {
-      useStore.getState().clearAll();
+      useStore.getState().clearAll({ resetMocks: true });
     };
     chrome.devtools.network.onNavigated.addListener(onNavigated);
 
+    let prevMocks = useStore.getState().mockResponses;
+    sendMockResponsesSnapshot(prevMocks);
+
+    const unsubscribe = useStore.subscribe((state) => {
+      if (state.mockResponses !== prevMocks) {
+        prevMocks = state.mockResponses;
+        sendMockResponsesSnapshot(state.mockResponses);
+      }
+    });
+
     return () => {
       port.disconnect();
+      unsubscribe();
+      unregisterChromePort();
       chrome.devtools.network.onNavigated.removeListener(onNavigated);
     };
   }, []);

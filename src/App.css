@@ -208,6 +208,15 @@ body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  min-height: 0;
+}
+
+.connection-list-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -249,6 +258,251 @@ body {
   color: var(--text-secondary);
   text-align: center;
   line-height: 1.6;
+}
+
+/* ===== CONNECTION TOOLS (trigger + mocks) ===== */
+
+.connection-tools {
+  flex-shrink: 0;
+  max-height: min(45vh, 420px);
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color);
+  padding: 8px;
+  font-size: 11px;
+}
+
+.connection-tools-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.connection-tools-subtitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.connection-tools-hint {
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 6px;
+  font-size: 10px;
+}
+
+.connection-tools-hint code {
+  font-size: 10px;
+  background: var(--bg-primary);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.trigger-section {
+  margin-bottom: 12px;
+}
+
+.trigger-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trigger-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.trigger-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  padding: 6px;
+  resize: vertical;
+  min-height: 52px;
+}
+
+.trigger-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.trigger-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.trigger-btn {
+  padding: 5px 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.trigger-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.trigger-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.trigger-row-remove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  line-height: 1;
+  align-self: center;
+}
+
+.trigger-row-remove:hover {
+  color: var(--status-error);
+}
+
+.trigger-add-row {
+  margin-top: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.trigger-add-row:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.mock-section {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.mock-empty-hint {
+  color: var(--status-connecting);
+  margin-bottom: 8px;
+}
+
+.mock-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  padding: 4px 0;
+}
+
+.mock-row-fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.mock-action-label {
+  display: block;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--sent-color);
+  margin-bottom: 2px;
+  word-break: break-all;
+}
+
+.mock-response-preview {
+  margin: 0;
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 48px;
+  overflow: hidden;
+}
+
+.mock-remove-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.mock-remove-btn:hover {
+  color: var(--status-error);
+}
+
+.mock-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mock-action-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  padding: 4px 6px;
+}
+
+.mock-response-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  padding: 4px 6px;
+  resize: vertical;
+  min-height: 48px;
+}
+
+.mock-add-btn {
+  align-self: flex-start;
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.mock-add-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.mock-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .connection-item {
@@ -297,8 +551,23 @@ body {
   color: var(--text-secondary);
 }
 
-.conn-clear-btn {
+.conn-item-actions {
   display: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.connection-item:hover .conn-item-actions {
+  display: flex;
+}
+
+.conn-clear-btn,
+.conn-remove-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: none;
@@ -308,8 +577,6 @@ body {
   padding: 3px;
   border-radius: 3px;
   flex-shrink: 0;
-  margin-left: auto;
-  margin-top: 1px;
 }
 
 .conn-clear-btn:hover {
@@ -317,8 +584,9 @@ body {
   color: var(--status-error);
 }
 
-.connection-item:hover .conn-clear-btn {
-  display: inline-flex;
+.conn-remove-btn:hover {
+  background: var(--bg-hover);
+  color: var(--status-error);
 }
 
 /* ===== CONTENT AREA ===== */

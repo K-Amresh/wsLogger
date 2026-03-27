@@ -5,9 +5,12 @@ const MAX_BUFFER = 2000;
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "ws-logger-panel") return;
 
+  let connectedTabId = null;
+
   port.onMessage.addListener((msg) => {
     if (msg.type === "init") {
       const tabId = msg.tabId;
+      connectedTabId = tabId;
       devtoolsPorts.set(tabId, port);
 
       const buffer = messageBuffer.get(tabId) || [];
@@ -17,6 +20,27 @@ chrome.runtime.onConnect.addListener((port) => {
       port.onDisconnect.addListener(() => {
         devtoolsPorts.delete(tabId);
       });
+    }
+
+    if (msg.type === "update-mocks" && connectedTabId != null) {
+      chrome.tabs
+        .sendMessage(connectedTabId, {
+          source: "__WS_LOGGER_CMD__",
+          type: "update-mocks",
+          mockResponses: msg.mockResponses,
+        })
+        .catch(() => {});
+    }
+
+    if (msg.type === "trigger-send" && connectedTabId != null) {
+      chrome.tabs
+        .sendMessage(connectedTabId, {
+          source: "__WS_LOGGER_CMD__",
+          type: "trigger-send",
+          connectionId: msg.connectionId,
+          payload: msg.payload,
+        })
+        .catch(() => {});
     }
   });
 });
