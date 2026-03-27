@@ -263,6 +263,31 @@ body {
 .sidebar-list {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
+}
+
+.tools-resize-handle {
+  flex-shrink: 0;
+  height: 5px;
+  cursor: row-resize;
+  background: transparent;
+  border-top: 1px solid var(--border-color);
+  position: relative;
+}
+
+.tools-resize-handle:hover,
+.tools-resize-handle:active {
+  background: var(--bg-hover);
+}
+
+.connection-tools-shell {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-secondary);
+  /* Clip here; inner .connection-tools scrolls (flex + min-height:0 pattern). */
+  overflow: hidden;
 }
 
 .sidebar-empty {
@@ -276,12 +301,84 @@ body {
 /* ===== CONNECTION TOOLS (trigger + mocks) ===== */
 
 .connection-tools {
-  flex-shrink: 0;
-  max-height: min(45vh, 420px);
-  overflow-y: auto;
-  border-top: 1px solid var(--border-color);
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 6px;
   padding: 8px;
   font-size: 11px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.connection-tools > .connection-tools-header {
+  flex: 0 0 auto;
+}
+
+.tools-accordion {
+  flex: 0 0 auto;
+  width: 100%;
+  height: fit-content;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.tools-accordion > summary.tools-accordion-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tools-accordion > summary.tools-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.tools-accordion > summary.tools-accordion-summary::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tools-accordion[open] > summary.tools-accordion-summary::before {
+  transform: rotate(45deg);
+}
+
+.tools-accordion-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tools-accordion-tooltip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tools-accordion-body {
+  padding: 8px;
+  border-top: 1px solid var(--border-color);
 }
 
 .connection-tools-header {
@@ -314,6 +411,10 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
+}
+
+.connection-tools-tooltip-custom-trigger {
+  vertical-align: middle;
 }
 
 .connection-tools-info-btn {
@@ -403,7 +504,7 @@ body {
 }
 
 .trigger-section {
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .trigger-rows {
@@ -446,23 +547,37 @@ body {
 }
 
 .trigger-btn {
-  padding: 5px 10px;
-  background: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px;
+  background: transparent;
   border: none;
   border-radius: 3px;
-  color: #fff;
-  font-size: 11px;
+  color: var(--accent);
   cursor: pointer;
-  white-space: nowrap;
+}
+
+.trigger-btn-icon {
+  display: block;
+  flex-shrink: 0;
 }
 
 .trigger-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
+  color: var(--accent-hover);
+}
+
+.trigger-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .trigger-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  color: var(--text-secondary);
 }
 
 .trigger-row-remove {
@@ -497,9 +612,14 @@ body {
   border-color: var(--border-color);
 }
 
-.mock-section {
-  padding-top: 8px;
+/* Mock accordion: outer has no top padding so inner controls inset (avoids collapse / specificity issues) */
+.tools-accordion-body.mock-section {
+  padding: 0 8px 8px;
   border-top: 1px solid var(--border-color);
+}
+
+.mock-section-inner {
+  padding-top: 14px;
 }
 
 .mock-empty-hint {
@@ -511,7 +631,7 @@ body {
 .mock-rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .mock-row-stack {
@@ -631,11 +751,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 14px;
 }
 
 .mock-add-btn {
-  align-self: flex-start;
+  width: 100%;
+  box-sizing: border-box;
   padding: 4px 10px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);

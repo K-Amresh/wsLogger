@@ -161,15 +161,21 @@
         var key = normalizeMockKey(m.match || m.action);
         return key && (key === reqAction || key === reqMethod);
       });
-      var sendToServer = true;
+      // Green (sendToServer true): mock only — no real send. Red: real send only — no mock.
+      var shouldSendOriginal = true;
+      var shouldApplyMock = false;
       if (mock && matchKey) {
-        if (mock.sendToServer !== true) {
-          sendToServer = false;
+        if (mock.sendToServer === true) {
+          shouldSendOriginal = false;
+          shouldApplyMock = true;
+        } else {
+          shouldSendOriginal = true;
+          shouldApplyMock = false;
         }
       }
-      var ret = sendToServer ? originalSend(msg) : undefined;
+      var ret = shouldSendOriginal ? originalSend(msg) : undefined;
 
-      if (mock && matchKey) {
+      if (shouldApplyMock) {
         setTimeout(function () {
           try {
             var responseObj = parseJsonLike(mock.response);

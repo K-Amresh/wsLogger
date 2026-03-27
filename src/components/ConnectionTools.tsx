@@ -1,9 +1,16 @@
 import {
+  cloneElement,
+  isValidElement,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type FocusEvent,
+  type HTMLAttributes,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -11,7 +18,18 @@ import { useStore, type MockResponse } from "../store";
 import { sendTriggerSend } from "../chromePageBridge";
 import { normalizeMockAction } from "../utils";
 
-function InfoTooltip({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+function InfoTooltip({
+  id,
+  label,
+  children,
+  trigger,
+}: {
+  id: string;
+  label: string;
+  children: ReactNode;
+  /** Renders instead of the default (i) button — same instant hover tooltip as accordion headers. */
+  trigger?: ReactNode;
+}) {
   const wrapRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -91,42 +109,73 @@ function InfoTooltip({ id, label, children }: { id: string; label: string; child
     scheduleHide();
   }, [scheduleHide]);
 
+  const defaultInfoButton = (
+    <button
+      type="button"
+      className="connection-tools-info-btn"
+      aria-label={label}
+      aria-describedby={open ? id : undefined}
+      onFocus={show}
+      onBlur={scheduleHide}
+    >
+      <svg
+        className="connection-tools-info-icon"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
+        <line
+          x1="12"
+          y1="16"
+          x2="12"
+          y2="11"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <circle cx="12" cy="8" r="1.25" fill="currentColor" />
+      </svg>
+    </button>
+  );
+
+  let inner: ReactNode = defaultInfoButton;
+  if (trigger !== undefined) {
+    if (isValidElement(trigger)) {
+      const t = trigger as ReactElement<{
+        onFocus?: (e: FocusEvent<HTMLElement>) => void;
+        onBlur?: (e: FocusEvent<HTMLElement>) => void;
+      }>;
+      inner = cloneElement(t, {
+        onFocus: (e: FocusEvent<HTMLElement>) => {
+          t.props.onFocus?.(e);
+          show();
+        },
+        onBlur: (e: FocusEvent<HTMLElement>) => {
+          t.props.onBlur?.(e);
+          scheduleHide();
+        },
+        "aria-describedby": open ? id : undefined,
+      } as HTMLAttributes<HTMLElement>);
+    } else {
+      inner = trigger;
+    }
+  }
+
   return (
     <>
       <span
         ref={wrapRef}
-        className="connection-tools-info-wrap"
+        className={
+          trigger
+            ? "connection-tools-info-wrap connection-tools-tooltip-custom-trigger"
+            : "connection-tools-info-wrap"
+        }
         onMouseEnter={show}
         onMouseLeave={onWrapMouseLeave}
       >
-        <button
-          type="button"
-          className="connection-tools-info-btn"
-          aria-label={label}
-          aria-describedby={open ? id : undefined}
-          onFocus={show}
-          onBlur={scheduleHide}
-        >
-          <svg
-            className="connection-tools-info-icon"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
-            <line
-              x1="12"
-              y1="16"
-              x2="12"
-              y2="11"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="12" cy="8" r="1.25" fill="currentColor" />
-          </svg>
-        </button>
+        {inner}
       </span>
       {open &&
         createPortal(
@@ -236,9 +285,9 @@ export function ConnectionTools() {
   const canSend = conn?.status === "open";
 
   const mockSendThroughTitle =
-    "Mock + server send for this row: green = matching requests are still sent to the server (mock response is also applied locally). Red (default) = matching requests are not sent to the server; only the mock response is delivered.";
+    "Green = matching sends use this mock only (no message to the server). Red = matching sends go to the server only (no mock).";
   const mockSendThroughAria =
-    "Toggle server send for this mock: green sends matching requests to the server; red (default) skips the real send and only applies the mock.";
+    "Green: mock only, no server send. Red: server send only, no mock.";
 
   const handleTrigger = (payload: string) => {
     sendTriggerSend(selectedId, payload);
@@ -252,19 +301,30 @@ export function ConnectionTools() {
     setNewResponse("{}");
   };
 
+  const stopAccordionToggle = (e: MouseEvent | KeyboardEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div className="connection-tools">
       <div className="connection-tools-header">Tools</div>
 
-      <div className="trigger-section">
-        <div className="connection-tools-subtitle-row">
-          <span className="connection-tools-subtitle">Trigger</span>
-          <InfoTooltip id="trigger-help" label="About Trigger">
-            Send a payload through this WebSocket (same as <code>ws.send</code> from
-            your app). Add multiple rows for quick presets. Use JSON or JS-style
-            objects with <code>method</code> or <code>action</code> when needed.
-          </InfoTooltip>
-        </div>
+      <details className="tools-accordion" open>
+        <summary className="tools-accordion-summary">
+          <span className="tools-accordion-title">Trigger</span>
+          <span
+            className="tools-accordion-tooltip"
+            onClick={stopAccordionToggle}
+            onKeyDown={stopAccordionToggle}
+          >
+            <InfoTooltip id="trigger-help" label="About Trigger">
+              Send a payload through this WebSocket (same as <code>ws.send</code> from
+              your app). Add multiple rows for quick presets. Use JSON or JS-style
+              objects with <code>method</code> or <code>action</code> when needed.
+            </InfoTooltip>
+          </span>
+        </summary>
+        <div className="tools-accordion-body trigger-section">
         <div className="trigger-rows">
           {triggerRows.map((row) => (
             <div key={row.id} className="trigger-row">
@@ -282,8 +342,21 @@ export function ConnectionTools() {
                   className="trigger-btn"
                   disabled={!canSend}
                   onClick={() => handleTrigger(row.payload)}
+                  title="Trigger"
+                  aria-label="Trigger"
                 >
-                  Trigger
+                  <svg
+                    className="trigger-btn-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+                    />
+                  </svg>
                 </button>
                 {triggerRows.length > 1 && (
                   <button
@@ -306,23 +379,32 @@ export function ConnectionTools() {
         >
           + Add trigger row
         </button>
-      </div>
-
-      <div className="mock-section">
-        <div className="connection-tools-subtitle-row">
-          <span className="connection-tools-subtitle">Mock responses</span>
-          <InfoTooltip id="mock-help" label="About mock responses">
-            When an outgoing JSON message’s <code>method</code> or{" "}
-            <code>action</code> matches a saved key (from your app or Trigger), a
-            synthetic <code>message</code> is logged and dispatched; the response
-            object is merged with the request <code>id</code> when present. Add a
-            row: enter method (or action) and response JSON, then{" "}
-            <strong>Add mock</strong>. Use <strong>Edit</strong> on a saved row to
-            change it. Each row has a red/green dot: green sends matching requests
-            to the server as well; red (default) skips the real send for that
-            rule.
-          </InfoTooltip>
         </div>
+      </details>
+
+      <details className="tools-accordion" open>
+        <summary className="tools-accordion-summary">
+          <span className="tools-accordion-title">Mock responses</span>
+          <span
+            className="tools-accordion-tooltip"
+            onClick={stopAccordionToggle}
+            onKeyDown={stopAccordionToggle}
+          >
+            <InfoTooltip id="mock-help" label="About mock responses">
+              When an outgoing JSON message’s <code>method</code> or{" "}
+              <code>action</code> matches a saved key (from your app or Trigger), a
+              synthetic <code>message</code> is logged and dispatched; the response
+              object is merged with the request <code>id</code> when present. Add a
+              row: enter method (or action) and response JSON, then{" "}
+              <strong>Add mock</strong>. Use <strong>Edit</strong> on a saved row to
+              change it. Each row has a red/green dot: green applies the mock only
+              (no server send); red sends matching requests to the server only (no
+              mock).
+            </InfoTooltip>
+          </span>
+        </summary>
+        <div className="tools-accordion-body mock-section">
+          <div className="mock-section-inner">
         {mocks.length === 0 && (
           <p className="mock-empty-hint">No mocks yet.</p>
         )}
@@ -388,19 +470,26 @@ export function ConnectionTools() {
                       Edit
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className={`mock-send-through-btn ${sendThrough ? "mock-send-through-on" : ""}`}
-                    onClick={() => toggleMockSendToServer(selectedId, label)}
-                    title={mockSendThroughTitle}
-                    aria-label={mockSendThroughAria}
-                    aria-pressed={sendThrough}
+                  <InfoTooltip
+                    id={`mock-send-help-${rowKey}`}
+                    label={mockSendThroughAria}
+                    trigger={
+                      <button
+                        type="button"
+                        className={`mock-send-through-btn ${sendThrough ? "mock-send-through-on" : ""}`}
+                        onClick={() => toggleMockSendToServer(selectedId, label)}
+                        aria-label={mockSendThroughAria}
+                        aria-pressed={sendThrough}
+                      >
+                        <span
+                          className="mock-send-through-indicator"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    }
                   >
-                    <span
-                      className="mock-send-through-indicator"
-                      aria-hidden="true"
-                    />
-                  </button>
+                    {mockSendThroughTitle}
+                  </InfoTooltip>
                   <button
                     type="button"
                     className="mock-remove-btn"
@@ -442,7 +531,9 @@ export function ConnectionTools() {
             Add mock
           </button>
         </div>
-      </div>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }

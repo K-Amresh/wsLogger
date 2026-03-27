@@ -11,12 +11,18 @@ const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 560;
 const SIDEBAR_DEFAULT = 240;
 
+const TOOLS_PANEL_MIN = 120;
+const TOOLS_PANEL_MAX = 520;
+const TOOLS_PANEL_DEFAULT = 280;
+
 export default function App() {
   useChromeConnection();
 
   const hasSelection = useStore((s) => s.selectedMessage != null);
+  const selectedConnectionId = useStore((s) => s.selectedConnectionId);
   const [detailHeight, setDetailHeight] = useState(250);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
+  const [toolsPanelHeight, setToolsPanelHeight] = useState(TOOLS_PANEL_DEFAULT);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const onSidebarResizeStart = useCallback((e: React.MouseEvent) => {
@@ -67,6 +73,32 @@ export default function App() {
     document.addEventListener("mouseup", onUp);
   }, []);
 
+  const onToolsResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    const startY = e.clientY;
+    const startH = toolsPanelHeight;
+
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientY - startY;
+      const next = startH - delta;
+      setToolsPanelHeight(
+        Math.max(TOOLS_PANEL_MIN, Math.min(TOOLS_PANEL_MAX, next)),
+      );
+    };
+
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [toolsPanelHeight]);
+
   return (
     <div className="app">
       <Toolbar />
@@ -76,7 +108,26 @@ export default function App() {
           style={{ width: sidebarWidth, flexShrink: 0 }}
         >
           <ConnectionList />
-          <ConnectionTools />
+          {selectedConnectionId != null && (
+            <>
+              <div
+                className="tools-resize-handle"
+                onMouseDown={onToolsResizeStart}
+                title="Drag to resize tools panel"
+                role="separator"
+                aria-orientation="horizontal"
+              />
+              <div
+                className="connection-tools-shell"
+                style={{
+                  height: toolsPanelHeight,
+                  minHeight: TOOLS_PANEL_MIN,
+                }}
+              >
+                <ConnectionTools />
+              </div>
+            </>
+          )}
         </div>
         <div
           className="sidebar-resize-handle"

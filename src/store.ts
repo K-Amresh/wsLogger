@@ -62,7 +62,7 @@ export interface MockResponse {
   /** Matches outgoing JSON-RPC/LSP `method` or legacy `action`. */
   match: string;
   response: string;
-  /** If true (green), also send to server when this mock matches. Default false (red). */
+  /** If true (green), matching sends use mock only (no real send). If false (red), passthrough to server only (no mock). */
   sendToServer?: boolean;
 }
 
