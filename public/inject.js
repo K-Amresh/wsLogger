@@ -150,9 +150,7 @@
         stack: stack,
         timestamp: Date.now(),
       });
-      var ret = originalSend(msg);
 
-      /* Mocks for this connection apply to every outgoing frame (app code or devtools trigger). */
       var mocks = mockConfigs[connectionId] || [];
       var reqAction =
         result.action != null ? normalizeMockKey(result.action) : "";
@@ -163,6 +161,14 @@
         var key = normalizeMockKey(m.match || m.action);
         return key && (key === reqAction || key === reqMethod);
       });
+      var sendToServer = true;
+      if (mock && matchKey) {
+        if (mock.sendToServer !== true) {
+          sendToServer = false;
+        }
+      }
+      var ret = sendToServer ? originalSend(msg) : undefined;
+
       if (mock && matchKey) {
         setTimeout(function () {
           try {

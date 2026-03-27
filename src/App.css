@@ -201,14 +201,27 @@ body {
 /* ===== SIDEBAR / CONNECTIONS ===== */
 
 .sidebar {
-  width: 240px;
-  min-width: 180px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   min-height: 0;
+}
+
+.sidebar-resize-handle {
+  flex-shrink: 0;
+  width: 5px;
+  margin: 0 -2px;
+  cursor: col-resize;
+  align-self: stretch;
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--bg-hover);
 }
 
 .connection-list-panel {
@@ -286,18 +299,107 @@ body {
   margin-bottom: 4px;
 }
 
-.connection-tools-hint {
-  color: var(--text-secondary);
-  line-height: 1.45;
-  margin-bottom: 6px;
-  font-size: 10px;
+.connection-tools-subtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
-.connection-tools-hint code {
+.connection-tools-subtitle-row .connection-tools-subtitle {
+  margin-bottom: 0;
+}
+
+.connection-tools-info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.connection-tools-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: help;
+  border-radius: 2px;
+  line-height: 0;
+}
+
+.connection-tools-info-btn:hover,
+.connection-tools-info-btn:focus-visible {
+  color: var(--accent);
+}
+
+.connection-tools-info-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.connection-tools-tooltip {
+  box-sizing: border-box;
+  min-width: 220px;
+  max-width: min(280px, 90vw);
+  padding: 8px 10px;
   font-size: 10px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: opacity 0.12s ease;
+}
+
+.connection-tools-tooltip-portal {
+  position: fixed;
+  z-index: 2147483647;
+  margin: 0;
+}
+
+.connection-tools-tooltip code {
+  font-size: 9px;
   background: var(--bg-primary);
   padding: 0 3px;
   border-radius: 2px;
+}
+
+.mock-send-through-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.mock-send-through-btn:hover {
+  background: var(--bg-hover);
+}
+
+.mock-send-through-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: block;
+}
+
+.mock-send-through-btn.mock-send-through-on .mock-send-through-indicator {
+  background: var(--status-open);
+}
+
+.mock-send-through-btn:not(.mock-send-through-on) .mock-send-through-indicator {
+  background: var(--status-error);
 }
 
 .trigger-section {
@@ -401,40 +503,113 @@ body {
 }
 
 .mock-empty-hint {
-  color: var(--status-connecting);
-  margin-bottom: 8px;
+  color: var(--text-secondary);
+  margin: 0 0 6px;
+  font-size: 10px;
 }
 
-.mock-row {
+.mock-rows {
   display: flex;
-  gap: 6px;
-  align-items: flex-start;
-  margin-bottom: 6px;
-  padding: 4px 0;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.mock-row-fields {
+.mock-row-stack {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.mock-action-label {
-  display: block;
+.mock-match-input {
+  width: 100%;
+  box-sizing: border-box;
   font-family: ui-monospace, monospace;
   font-size: 10px;
+  padding: 5px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
   color: var(--sent-color);
-  margin-bottom: 2px;
-  word-break: break-all;
 }
 
-.mock-response-preview {
-  margin: 0;
-  font-size: 9px;
+.mock-match-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.mock-match-input-readonly {
+  opacity: 0.8;
+  cursor: default;
+  background: var(--bg-tertiary);
+  border-style: dashed;
   color: var(--text-secondary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 48px;
-  overflow: hidden;
+}
+
+.mock-response-textarea {
+  min-height: 52px;
+}
+
+.mock-response-textarea-readonly {
+  opacity: 0.82;
+  cursor: default;
+  resize: none;
+  background: var(--bg-tertiary);
+  border-style: dashed;
+  color: var(--text-secondary);
+}
+
+.mock-row-saved-editing {
+  padding: 5px;
+  margin: -5px -5px 0;
+  border-radius: 4px;
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  background: rgba(0, 120, 212, 0.07);
+}
+
+.mock-saved-actions {
+  align-items: stretch;
+}
+
+.mock-edit-btn,
+.mock-cancel-btn {
+  padding: 5px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mock-edit-btn:hover,
+.mock-cancel-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  background: var(--bg-hover);
+}
+
+.mock-save-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mock-save-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.mock-save-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .mock-remove-btn {
@@ -457,32 +632,6 @@ body {
   flex-direction: column;
   gap: 6px;
   margin-top: 8px;
-}
-
-.mock-action-input {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  color: var(--text-primary);
-  font-family: ui-monospace, monospace;
-  font-size: 10px;
-  padding: 4px 6px;
-}
-
-.mock-response-input {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  color: var(--text-primary);
-  font-family: ui-monospace, monospace;
-  font-size: 10px;
-  padding: 4px 6px;
-  resize: vertical;
-  min-height: 48px;
 }
 
 .mock-add-btn {

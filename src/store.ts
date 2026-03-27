@@ -62,6 +62,8 @@ export interface MockResponse {
   /** Matches outgoing JSON-RPC/LSP `method` or legacy `action`. */
   match: string;
   response: string;
+  /** If true (green), also send to server when this mock matches. Default false (red). */
+  sendToServer?: boolean;
 }
 
 function mockEntryKey(m: MockResponse & { action?: string }): string {
@@ -92,7 +94,13 @@ interface Store {
   selectMessage: (sel: MessageSelection | null) => void;
   setRecording: (recording: boolean) => void;
   addMockResponse: (connectionId: string, mock: MockResponse) => void;
+  updateMockResponse: (
+    connectionId: string,
+    previousMatchKey: string,
+    updates: { match: string; response: string },
+  ) => boolean;
   removeMockResponse: (connectionId: string, matchKey: string) => void;
+  toggleMockSendToServer: (connectionId: string, matchKey: string) => void;
   /** Clears messages/connections. Pass resetMocks:true on full page navigation to drop mock rules. */
   clearAll: (options?: { resetMocks?: boolean }) => void;
   clearConnectionMessages: (connectionId: string) => void;
@@ -219,10 +227,41 @@ export const useStore = create<Store>()((set, get) => ({
       return {
         mockResponses: {
           ...state.mockResponses,
-          [connectionId]: [...filtered, { match, response: mock.response }],
+          [connectionId]: [
+            ...filtered,
+            {
+              match,
+              response: mock.response,
+              sendToServer: mock.sendToServer === true,
+            },
+          ],
         },
       };
     }),
+
+  updateMockResponse: (connectionId, previousMatchKey, updates) => {
+    const state = get();
+    const list = state.mockResponses[connectionId];
+    if (!list) return false;
+    const prevKey = normalizeMockAction(previousMatchKey);
+    const newMatch = normalizeMockAction(updates.match);
+    if (!newMatch) return false;
+    const idx = list.findIndex((m) => mockEntryKey(m) === prevKey);
+    if (idx === -1) return false;
+    const others = list.filter((_, i) => i !== idx);
+    if (others.some((m) => mockEntryKey(m) === newMatch)) return false;
+    const existing = list[idx]!;
+    const next = [...list];
+    next[idx] = {
+      match: newMatch,
+      response: updates.response,
+      sendToServer: existing.sendToServer === true,
+    };
+    set({
+      mockResponses: { ...state.mockResponses, [connectionId]: next },
+    });
+    return true;
+  },
 
   removeMockResponse: (connectionId, matchKey) =>
     set((state) => {
@@ -234,6 +273,21 @@ export const useStore = create<Store>()((set, get) => ({
       if (next.length === 0) delete newMocks[connectionId];
       else newMocks[connectionId] = next;
       return { mockResponses: newMocks };
+    }),
+
+  toggleMockSendToServer: (connectionId, matchKey) =>
+    set((state) => {
+      const list = state.mockResponses[connectionId];
+      if (!list) return state;
+      const key = normalizeMockAction(matchKey);
+      const next = list.map((m) => {
+        if (mockEntryKey(m) !== key) return m;
+        const cur = m.sendToServer === true;
+        return { ...m, sendToServer: !cur };
+      });
+      return {
+        mockResponses: { ...state.mockResponses, [connectionId]: next },
+      };
     }),
 
   clearAll: (options) =>
