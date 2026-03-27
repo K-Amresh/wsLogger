@@ -218,18 +218,18 @@ export const useStore = create<Store>()((set, get) => ({
         }
       }
 
-      const newConnections = { ...state.connections };
-      delete newConnections[connectionId];
+      const conn = state.connections[connectionId];
+      const newConnections = conn
+        ? {
+            ...state.connections,
+            [connectionId]: { ...conn, messageCount: 0 },
+          }
+        : state.connections;
 
       const newSelectedMessage =
         state.selectedMessage?.connectionId === connectionId
           ? null
           : state.selectedMessage;
-
-      const newSelectedConnectionId =
-        state.selectedConnectionId === connectionId
-          ? null
-          : state.selectedConnectionId;
 
       return {
         messages: newMessages,
@@ -238,7 +238,6 @@ export const useStore = create<Store>()((set, get) => ({
         responseToRequest: newRtoR,
         pendingRequests: newPending,
         selectedMessage: newSelectedMessage,
-        selectedConnectionId: newSelectedConnectionId,
       };
     }),
 
