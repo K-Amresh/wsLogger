@@ -1,8 +1,12 @@
-import { useMemo, useRef, useEffect, useState } from "react";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { useStore } from "../store";
 import type { MessageSelection } from "../store";
 import { formatDuration } from "../utils";
 import type { MessageFilter, WsMessage } from "../types";
+
+const ROW_HEIGHT = 28;
+const OVERSCAN = 5;
+const SCROLL_THROTTLE_MS = 100;
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -42,11 +46,49 @@ export function MessageList() {
 
   const [filter, setFilter] = useState<MessageFilter>("all");
   const listRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewHeight, setViewHeight] = useState(0);
 
   useEffect(() => {
     setFilter("all");
     selectMessage(null);
   }, [selectedConnectionId, selectMessage]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setViewHeight(entry.contentRect.height);
+      }
+    });
+    ro.observe(el);
+    setViewHeight(el.clientHeight);
+
+    return () => ro.disconnect();
+  }, []);
+
+  const rafRef = useRef(0);
+  const lastScrollRef = useRef(0);
+
+  const handleScroll = useCallback(() => {
+    const now = performance.now();
+    if (now - lastScrollRef.current < SCROLL_THROTTLE_MS) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        lastScrollRef.current = performance.now();
+        if (listRef.current) setScrollTop(listRef.current.scrollTop);
+      });
+      return;
+    }
+    lastScrollRef.current = now;
+    if (listRef.current) setScrollTop(listRef.current.scrollTop);
+  }, []);
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
 
   const flat = useMemo(() => {
     const result: FlatMessage[] = [];
@@ -54,12 +96,19 @@ export function MessageList() {
     const addMessages = (connId: string, msgs: WsMessage[]) => {
       for (let i = 0; i < msgs.length; i++) {
         const m = msgs[i]!;
-        result.push(Object.assign({}, m, { sel: { connectionId: connId, index: i } }));
+        result.push(
+          Object.assign({}, m, {
+            sel: { connectionId: connId, index: i },
+          }),
+        );
       }
     };
 
     if (selectedConnectionId) {
-      addMessages(selectedConnectionId, messagesMap[selectedConnectionId] ?? []);
+      addMessages(
+        selectedConnectionId,
+        messagesMap[selectedConnectionId] ?? [],
+      );
     } else {
       for (const [connId, msgs] of Object.entries(messagesMap)) {
         if (!(connId in connections)) continue;
@@ -89,6 +138,15 @@ export function MessageList() {
   }, [flat, filter, searchQuery]);
 
   const totalMessages = flat.length;
+  const totalHeight = filtered.length * ROW_HEIGHT;
+
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const endIdx = Math.min(
+    filtered.length,
+    Math.ceil((scrollTop + viewHeight) / ROW_HEIGHT) + OVERSCAN,
+  );
+  const visibleItems = filtered.slice(startIdx, endIdx);
+  const offsetY = startIdx * ROW_HEIGHT;
 
   const isSelected = (sel: MessageSelection) =>
     selectedMessage != null &&
@@ -130,58 +188,72 @@ export function MessageList() {
           </svg>
         </button>
       </div>
-      <div className="message-list" ref={listRef}>
-        {filtered.length === 0 && (
+      <div className="message-list" ref={listRef} onScroll={handleScroll}>
+        {filtered.length === 0 ? (
           <div className="message-empty">
             {totalMessages === 0
               ? "Waiting for WebSocket messages..."
               : "No messages match the current filter."}
           </div>
-        )}
-        {filtered.map((msg) => {
-          const corr =
-            msg.direction === "sent"
-              ? correlations[msg.sel.connectionId]?.[msg.sel.index]
-              : undefined;
-
-          return (
+        ) : (
+          <div style={{ height: totalHeight, position: "relative" }}>
             <div
-              key={`${msg.sel.connectionId}:${msg.sel.index}`}
-              className={`message-row ${msg.direction} ${isSelected(msg.sel) ? "selected" : ""}`}
-              onClick={() =>
-                selectMessage(isSelected(msg.sel) ? null : msg.sel)
-              }
+              style={{
+                position: "absolute",
+                top: offsetY,
+                left: 0,
+                right: 0,
+              }}
             >
-              <span className={`direction-icon ${msg.direction}`}>
-                {msg.direction === "sent" ? "\u2191" : "\u2193"}
-              </span>
-              <span className="message-preview">
-                {truncate(msg.data, 120)}
-              </span>
-              {corr &&
-                (corr.responseIndices.length === 0 ? (
-                  <span
-                    className="pending-badge"
-                    title="Waiting for response"
+              {visibleItems.map((msg) => {
+                const corr =
+                  msg.direction === "sent"
+                    ? correlations[msg.sel.connectionId]?.[msg.sel.index]
+                    : undefined;
+
+                return (
+                  <div
+                    key={`${msg.sel.connectionId}:${msg.sel.index}`}
+                    className={`message-row ${msg.direction} ${isSelected(msg.sel) ? "selected" : ""}`}
+                    style={{ height: ROW_HEIGHT }}
+                    onClick={() =>
+                      selectMessage(isSelected(msg.sel) ? null : msg.sel)
+                    }
                   >
-                    <span className="spinner small" />
-                  </span>
-                ) : (
-                  <span className="wait-badge" title="Response time">
-                    {formatDuration(corr.waitTimes[0] ?? 0)}
-                    {corr.responseIndices.length > 1 && (
-                      <span className="response-count">
-                        {" "}({corr.responseIndices.length})
-                      </span>
-                    )}
-                  </span>
-                ))}
-              <span className="message-time">
-                {formatTime(msg.timestamp)}
-              </span>
+                    <span className={`direction-icon ${msg.direction}`}>
+                      {msg.direction === "sent" ? "\u2191" : "\u2193"}
+                    </span>
+                    <span className="message-preview">
+                      {truncate(msg.data, 120)}
+                    </span>
+                    {corr &&
+                      (corr.responseIndices.length === 0 ? (
+                        <span
+                          className="pending-badge"
+                          title="Waiting for response"
+                        >
+                          <span className="spinner small" />
+                        </span>
+                      ) : (
+                        <span className="wait-badge" title="Response time">
+                          {formatDuration(corr.waitTimes[0] ?? 0)}
+                          {corr.responseIndices.length > 1 && (
+                            <span className="response-count">
+                              {" "}
+                              ({corr.responseIndices.length})
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    <span className="message-time">
+                      {formatTime(msg.timestamp)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        )}
       </div>
     </div>
   );
