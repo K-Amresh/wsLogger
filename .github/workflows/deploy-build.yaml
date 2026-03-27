@@ -1,0 +1,48 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main  # Trigger on commits to main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Deploy to another repo
+        env:
+          TARGET_REPO: ${{ secrets.TARGET_REPO }}   # e.g., username/repo
+          TARGET_BRANCH: main                        # branch to deploy to
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          # Clone the target repo
+          git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/${TARGET_REPO}.git deploy-repo
+          
+          # Remove old files
+          rm -rf deploy-repo/*
+          
+          # Copy build files
+          cp -R dist/* deploy-repo/  # adjust 'dist' if your build output is elsewhere
+          
+          cd deploy-repo
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          
+          git add .
+          git commit -m "Deploy build from main branch" || echo "No changes to commit"
+          git push origin ${TARGET_BRANCH}
