@@ -137,6 +137,28 @@ export function MessageList() {
     return result;
   }, [flat, filter, searchQuery]);
 
+  useEffect(() => {
+    if (!selectedMessage || !listRef.current) return;
+    const idx = filtered.findIndex(
+      (m) =>
+        m.sel.connectionId === selectedMessage.connectionId &&
+        m.sel.index === selectedMessage.index,
+    );
+    if (idx === -1) return;
+
+    const rowTop = idx * ROW_HEIGHT;
+    const rowBottom = rowTop + ROW_HEIGHT;
+    const el = listRef.current;
+    const visibleTop = el.scrollTop;
+    const visibleBottom = visibleTop + el.clientHeight;
+
+    if (rowTop < visibleTop) {
+      el.scrollTop = rowTop;
+    } else if (rowBottom > visibleBottom) {
+      el.scrollTop = rowBottom - el.clientHeight;
+    }
+  }, [selectedMessage, filtered]);
+
   const totalMessages = flat.length;
   const totalHeight = filtered.length * ROW_HEIGHT;
 
