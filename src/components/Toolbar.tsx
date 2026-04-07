@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useStore } from "../store";
 import type { HarExport } from "../store";
+import { STACK_TRACE_LIMIT_MAX } from "../utils";
 
 function downloadHar(data: HarExport) {
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -37,6 +38,8 @@ export function Toolbar() {
   );
   const exportHar = useStore((s) => s.exportHar);
   const importHar = useStore((s) => s.importHar);
+  const stackTraceLimit = useStore((s) => s.stackTraceLimit);
+  const setStackTraceLimit = useStore((s) => s.setStackTraceLimit);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +91,31 @@ export function Toolbar() {
         <span className="toolbar-separator" />
         <span className="toolbar-stat">{connectionCount} active</span>
         <span className="toolbar-stat muted">{totalMessages} messages</span>
+        <span className="toolbar-separator" />
+        <label
+          className="toolbar-stack-depth-label"
+          title="Error.stackTraceLimit in the inspected page: number of stack frames captured for WebSocket stack traces (1–200)."
+        >
+          <span className="toolbar-stack-depth-text">Frames</span>
+          <input
+            type="number"
+            className="toolbar-stack-depth-input"
+            min={1}
+            max={STACK_TRACE_LIMIT_MAX}
+            step={1}
+            value={stackTraceLimit}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "") {
+                setStackTraceLimit(10);
+                return;
+              }
+              const v = parseInt(raw, 10);
+              setStackTraceLimit(Number.isNaN(v) ? 10 : v);
+            }}
+            aria-label="Stack trace frame limit (Error.stackTraceLimit)"
+          />
+        </label>
         <span className="toolbar-separator" />
         <button
           className="toolbar-btn"

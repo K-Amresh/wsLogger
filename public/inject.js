@@ -70,6 +70,13 @@
     };
   }
 
+  function applyStackTraceLimit(n) {
+    var v = typeof n === "number" && Number.isFinite(n) ? Math.floor(n) : 10;
+    if (v < 1) v = 1;
+    if (v > 200) v = 200;
+    Error.stackTraceLimit = v;
+  }
+
   window.addEventListener("message", function (event) {
     if (!event.data || event.data.source !== "__WS_LOGGER_CMD__") return;
     if (event.data.type === "update-mocks") {
@@ -80,6 +87,9 @@
       if (target && target.readyState === 1) {
         target.send(event.data.payload);
       }
+    }
+    if (event.data.type === "update-stack-trace-limit") {
+      applyStackTraceLimit(event.data.stackTraceLimit);
     }
   });
 

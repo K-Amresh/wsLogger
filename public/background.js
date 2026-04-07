@@ -42,6 +42,16 @@ chrome.runtime.onConnect.addListener((port) => {
         })
         .catch(() => {});
     }
+
+    if (msg.type === "update-stack-trace-limit" && connectedTabId != null) {
+      chrome.tabs
+        .sendMessage(connectedTabId, {
+          source: "__WS_LOGGER_CMD__",
+          type: "update-stack-trace-limit",
+          stackTraceLimit: msg.stackTraceLimit,
+        })
+        .catch(() => {});
+    }
   });
 });
 

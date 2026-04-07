@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import type { WsConnection, WsMessage } from "./types";
-import { normalizeMockAction } from "./utils";
+import {
+  clampStackTraceLimit,
+  getInitialStackTraceLimit,
+  normalizeMockAction,
+} from "./utils";
 
 export interface CorrelationEntry {
   responseIndices: number[];
@@ -78,6 +82,8 @@ interface Store {
   selectedMessage: MessageSelection | null;
   isRecording: boolean;
   mockResponses: Record<string, MockResponse[]>;
+  /** Frames captured per `new Error().stack` in the page (maps to `Error.stackTraceLimit`). */
+  stackTraceLimit: number;
 
   pendingRequests: Record<string, number>;
   correlations: Record<string, Record<number, CorrelationEntry>>;
@@ -93,6 +99,7 @@ interface Store {
   setSearchQuery: (query: string) => void;
   selectMessage: (sel: MessageSelection | null) => void;
   setRecording: (recording: boolean) => void;
+  setStackTraceLimit: (limit: number) => void;
   addMockResponse: (connectionId: string, mock: MockResponse) => void;
   updateMockResponse: (
     connectionId: string,
@@ -118,6 +125,7 @@ export const useStore = create<Store>()((set, get) => ({
   selectedMessage: null,
   isRecording: false,
   mockResponses: {},
+  stackTraceLimit: getInitialStackTraceLimit(),
 
   pendingRequests: {},
   correlations: {},
@@ -214,6 +222,9 @@ export const useStore = create<Store>()((set, get) => ({
   selectMessage: (sel) => set({ selectedMessage: sel }),
 
   setRecording: (isRecording) => set({ isRecording }),
+
+  setStackTraceLimit: (limit) =>
+    set({ stackTraceLimit: clampStackTraceLimit(limit) }),
 
   addMockResponse: (connectionId, mock) =>
     set((state) => {

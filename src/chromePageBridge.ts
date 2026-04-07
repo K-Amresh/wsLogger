@@ -33,3 +33,12 @@ export function sendTriggerSend(connectionId: string, payload: string) {
     payload,
   });
 }
+
+export function sendStackTraceLimitSnapshot(stackTraceLimit: number) {
+  if (!portRef || tabIdRef == null) return;
+  portRef.postMessage({
+    type: "update-stack-trace-limit",
+    tabId: tabIdRef,
+    stackTraceLimit,
+  });
+}

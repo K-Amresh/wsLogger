@@ -137,6 +137,36 @@ body {
   }
 }
 
+.toolbar-stack-depth-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: default;
+  user-select: none;
+}
+
+.toolbar-stack-depth-text {
+  white-space: nowrap;
+}
+
+.toolbar-stack-depth-input {
+  width: 52px;
+  padding: 2px 4px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+.toolbar-stack-depth-input:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+}
+
 .toolbar-separator {
   width: 1px;
   height: 16px;

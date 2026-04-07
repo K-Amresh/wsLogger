@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import {
   registerChromePort,
   sendMockResponsesSnapshot,
+  sendStackTraceLimitSnapshot,
   unregisterChromePort,
 } from "../chromePageBridge";
 
@@ -71,11 +72,17 @@ export function useChromeConnection() {
 
     let prevMocks = useStore.getState().mockResponses;
     sendMockResponsesSnapshot(prevMocks);
+    let prevStackTraceLimit = useStore.getState().stackTraceLimit;
+    sendStackTraceLimitSnapshot(prevStackTraceLimit);
 
     const unsubscribe = useStore.subscribe((state) => {
       if (state.mockResponses !== prevMocks) {
         prevMocks = state.mockResponses;
         sendMockResponsesSnapshot(state.mockResponses);
+      }
+      if (state.stackTraceLimit !== prevStackTraceLimit) {
+        prevStackTraceLimit = state.stackTraceLimit;
+        sendStackTraceLimitSnapshot(state.stackTraceLimit);
       }
     });
 
