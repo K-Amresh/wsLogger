@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { loadTriggerPayloads, saveTriggerPayloads } from "../persistence";
 import { useStore, type MockResponse } from "../store";
 import { sendTriggerSend } from "../chromePageBridge";
 import { normalizeMockAction } from "../utils";
@@ -218,9 +219,16 @@ export function ConnectionTools() {
   const updateMockResponse = useStore((s) => s.updateMockResponse);
   const removeMockResponse = useStore((s) => s.removeMockResponse);
 
-  const [triggerRows, setTriggerRows] = useState<TriggerRow[]>([
-    { id: newRowId(), payload: "{}" },
-  ]);
+  const [triggerRows, setTriggerRows] = useState<TriggerRow[]>(() =>
+    loadTriggerPayloads().map((payload) => ({
+      id: newRowId(),
+      payload,
+    })),
+  );
+
+  useEffect(() => {
+    saveTriggerPayloads(triggerRows.map((r) => r.payload));
+  }, [triggerRows]);
   const [newMatch, setNewMatch] = useState("");
   const [newResponse, setNewResponse] = useState("{}");
 
@@ -276,12 +284,8 @@ export function ConnectionTools() {
     cancelEditMock,
   ]);
 
-  if (!selectedId) {
-    return null;
-  }
-
-  const conn = connections[selectedId];
-  const mocks = mockResponses[selectedId] ?? [];
+  const conn = selectedId ? connections[selectedId] : undefined;
+  const mocks = selectedId ? (mockResponses[selectedId] ?? []) : [];
   const canSend = conn?.status === "open";
 
   const mockSendThroughTitle =
@@ -290,10 +294,12 @@ export function ConnectionTools() {
     "Green: mock only, no server send. Red: server send only, no mock.";
 
   const handleTrigger = (payload: string) => {
+    if (!selectedId) return;
     sendTriggerSend(selectedId, payload);
   };
 
   const handleAddMock = () => {
+    if (!selectedId) return;
     const match = newMatch.trim();
     if (!match) return;
     addMockResponse(selectedId, { match, response: newResponse });
@@ -308,6 +314,13 @@ export function ConnectionTools() {
   return (
     <div className="connection-tools">
       <div className="connection-tools-header">Tools</div>
+      {!selectedId && (
+        <p className="connection-tools-select-hint">
+          Select a connection above to edit mocks and send triggers. Trigger
+          presets are saved; mocks apply per WebSocket URL when a connection is
+          selected.
+        </p>
+      )}
 
       <details className="tools-accordion" open>
         <summary className="tools-accordion-summary">
@@ -477,7 +490,10 @@ export function ConnectionTools() {
                       <button
                         type="button"
                         className={`mock-send-through-btn ${sendThrough ? "mock-send-through-on" : ""}`}
-                        onClick={() => toggleMockSendToServer(selectedId, label)}
+                        onClick={() => {
+                          if (!selectedId) return;
+                          toggleMockSendToServer(selectedId, label);
+                        }}
                         aria-label={mockSendThroughAria}
                         aria-pressed={sendThrough}
                       >
@@ -494,6 +510,7 @@ export function ConnectionTools() {
                     type="button"
                     className="mock-remove-btn"
                     onClick={() => {
+                      if (!selectedId) return;
                       if (isEditing) cancelEditMock();
                       removeMockResponse(selectedId, label);
                     }}
@@ -513,6 +530,7 @@ export function ConnectionTools() {
             value={newMatch}
             onChange={(e) => setNewMatch(e.target.value)}
             spellCheck={false}
+            disabled={!selectedId}
           />
           <textarea
             className="trigger-input mock-response-textarea"
@@ -521,11 +539,12 @@ export function ConnectionTools() {
             onChange={(e) => setNewResponse(e.target.value)}
             spellCheck={false}
             rows={3}
+            disabled={!selectedId}
           />
           <button
             type="button"
             className="mock-add-btn"
-            disabled={!newMatch.trim()}
+            disabled={!selectedId || !newMatch.trim()}
             onClick={handleAddMock}
           >
             Add mock

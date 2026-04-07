@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import type { WsConnection, WsMessage } from "./types";
 import {
+  clearPersistedMocks,
+  getPersistedMocksForUrl,
+  loadPersistedStackTraceLimit,
+  savePersistedStackTraceLimit,
+} from "./persistence";
+import {
   clampStackTraceLimit,
   getInitialStackTraceLimit,
   normalizeMockAction,
@@ -123,18 +129,32 @@ export const useStore = create<Store>()((set, get) => ({
   selectedConnectionId: null,
   searchQuery: "",
   selectedMessage: null,
-  isRecording: false,
+  isRecording: true,
   mockResponses: {},
-  stackTraceLimit: getInitialStackTraceLimit(),
+  stackTraceLimit:
+    loadPersistedStackTraceLimit() ?? getInitialStackTraceLimit(),
 
   pendingRequests: {},
   correlations: {},
   responseToRequest: {},
 
   addConnection: (conn) =>
-    set((state) => ({
-      connections: { ...state.connections, [conn.id]: conn },
-    })),
+    set((state) => {
+      const persisted = getPersistedMocksForUrl(conn.url);
+      const nextMocks = { ...state.mockResponses };
+      if (persisted.length > 0) {
+        nextMocks[conn.id] = persisted.map((m) => ({
+          match: m.match,
+          response: m.response,
+          sendToServer: m.sendToServer !== false,
+        }));
+      }
+      return {
+        connections: { ...state.connections, [conn.id]: conn },
+        mockResponses: nextMocks,
+        selectedConnectionId: state.selectedConnectionId ?? conn.id,
+      };
+    }),
 
   updateConnectionStatus: (id, status) =>
     set((state) => {
@@ -223,8 +243,11 @@ export const useStore = create<Store>()((set, get) => ({
 
   setRecording: (isRecording) => set({ isRecording }),
 
-  setStackTraceLimit: (limit) =>
-    set({ stackTraceLimit: clampStackTraceLimit(limit) }),
+  setStackTraceLimit: (limit) => {
+    const v = clampStackTraceLimit(limit);
+    savePersistedStackTraceLimit(v);
+    set({ stackTraceLimit: v });
+  },
 
   addMockResponse: (connectionId, mock) =>
     set((state) => {
@@ -281,8 +304,7 @@ export const useStore = create<Store>()((set, get) => ({
       const key = normalizeMockAction(matchKey);
       const next = list.filter((m) => mockEntryKey(m) !== key);
       const newMocks = { ...state.mockResponses };
-      if (next.length === 0) delete newMocks[connectionId];
-      else newMocks[connectionId] = next;
+      newMocks[connectionId] = next;
       return { mockResponses: newMocks };
     }),
 
@@ -301,7 +323,10 @@ export const useStore = create<Store>()((set, get) => ({
       };
     }),
 
-  clearAll: (options) =>
+  clearAll: (options) => {
+    if (options?.resetMocks) {
+      clearPersistedMocks();
+    }
     set((state) => ({
       connections: {},
       messages: {},
@@ -311,7 +336,8 @@ export const useStore = create<Store>()((set, get) => ({
       correlations: {},
       responseToRequest: {},
       mockResponses: options?.resetMocks ? {} : state.mockResponses,
-    })),
+    }));
+  },
 
   clearConnectionMessages: (connectionId) =>
     set((state) => {

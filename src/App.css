@@ -420,6 +420,18 @@ body {
   margin-bottom: 8px;
 }
 
+.connection-tools-select-hint {
+  flex: 0 0 auto;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
 .connection-tools-subtitle {
   font-weight: 600;
   color: var(--text-primary);

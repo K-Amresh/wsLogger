@@ -19,7 +19,6 @@ export default function App() {
   useChromeConnection();
 
   const hasSelection = useStore((s) => s.selectedMessage != null);
-  const selectedConnectionId = useStore((s) => s.selectedConnectionId);
   const [detailHeight, setDetailHeight] = useState(250);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [toolsPanelHeight, setToolsPanelHeight] = useState(TOOLS_PANEL_DEFAULT);
@@ -108,26 +107,22 @@ export default function App() {
           style={{ width: sidebarWidth, flexShrink: 0 }}
         >
           <ConnectionList />
-          {selectedConnectionId != null && (
-            <>
-              <div
-                className="tools-resize-handle"
-                onMouseDown={onToolsResizeStart}
-                title="Drag to resize tools panel"
-                role="separator"
-                aria-orientation="horizontal"
-              />
-              <div
-                className="connection-tools-shell"
-                style={{
-                  height: toolsPanelHeight,
-                  minHeight: TOOLS_PANEL_MIN,
-                }}
-              >
-                <ConnectionTools />
-              </div>
-            </>
-          )}
+          <div
+            className="tools-resize-handle"
+            onMouseDown={onToolsResizeStart}
+            title="Drag to resize tools panel"
+            role="separator"
+            aria-orientation="horizontal"
+          />
+          <div
+            className="connection-tools-shell"
+            style={{
+              height: toolsPanelHeight,
+              minHeight: TOOLS_PANEL_MIN,
+            }}
+          >
+            <ConnectionTools />
+          </div>
         </div>
         <div
           className="sidebar-resize-handle"
